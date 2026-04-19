@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -117,7 +117,7 @@ def list_canonical_products(db: Session = Depends(get_db)):
 
 
 @app.get('/api/source-products')
-def list_source_products(source: str | None = None, db: Session = Depends(get_db)):
+def list_source_products(source: Optional[str] = None, db: Session = Depends(get_db)):
     stmt = select(SourceProduct)
     if source:
         system = source_product_service.get_source_system(db, source)
@@ -187,7 +187,7 @@ def settings():
     return app_settings.model_dump()
 
 
-def _coerce_int(value: Any) -> int | None:
+def _coerce_int(value: Any) -> Optional[int]:
     if value in (None, ''):
         return None
     try:

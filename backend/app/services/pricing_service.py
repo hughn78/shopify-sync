@@ -1,7 +1,8 @@
 from __future__ import annotations
+from typing import Dict, Optional
 
 class PricingService:
-    def compare_prices(self, shopify_price: float | None, fos_price: float | None) -> dict:
+    def compare_prices(self, shopify_price: Optional[float], fos_price: Optional[float]) -> Dict:
         if shopify_price is None or fos_price is None:
             return {'status': 'INSUFFICIENT_DATA'}
         return {

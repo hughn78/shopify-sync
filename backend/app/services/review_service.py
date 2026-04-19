@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 
 from datetime import datetime
 
@@ -8,7 +9,7 @@ from app.models import CanonicalProduct, ManualReviewAction, SourceProductLink
 
 
 class ReviewService:
-    def apply_action(self, db: Session, link: SourceProductLink, action: str, note: str | None, canonical_product_id: int | None = None, locked: bool | None = None):
+    def apply_action(self, db: Session, link: SourceProductLink, action: str, note: Optional[str], canonical_product_id: Optional[int] = None, locked: Optional[bool] = None):
         old = {
             'link_status': link.link_status,
             'canonical_product_id': link.canonical_product_id,

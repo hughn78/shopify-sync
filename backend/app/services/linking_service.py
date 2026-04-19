@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 
 from datetime import datetime
 
@@ -16,10 +17,10 @@ class LinkingService:
         source_product_id: int,
         link_status: str,
         link_method: str,
-        confidence_score: float | None = None,
-        fuzzy_score: float | None = None,
-        ai_score: float | None = None,
-        ai_reason: str | None = None,
+        confidence_score: Optional[float] = None,
+        fuzzy_score: Optional[float] = None,
+        ai_score: Optional[float] = None,
+        ai_reason: Optional[str] = None,
     ) -> SourceProductLink:
         link = db.scalar(select(SourceProductLink).where(SourceProductLink.source_product_id == source_product_id))
         if link and link.locked and link.canonical_product_id != canonical_product_id:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
@@ -21,12 +21,12 @@ class ImportBatchRead(BaseModel):
 class CanonicalProductRead(BaseModel):
     id: int
     canonical_name: str
-    normalized_name: str | None = None
-    primary_barcode: str | None = None
-    primary_apn: str | None = None
-    primary_pde: str | None = None
+    normalized_name: Optional[str] = None
+    primary_barcode: Optional[str] = None
+    primary_apn: Optional[str] = None
+    primary_pde: Optional[str] = None
     review_status: str
-    confidence_summary: str | None = None
+    confidence_summary: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -35,12 +35,12 @@ class CanonicalProductRead(BaseModel):
 class SourceProductRead(BaseModel):
     id: int
     title: str
-    handle: str | None = None
-    sku: str | None = None
-    barcode: str | None = None
-    apn: str | None = None
-    pde: str | None = None
-    status: str | None = None
+    handle: Optional[str] = None
+    sku: Optional[str] = None
+    barcode: Optional[str] = None
+    apn: Optional[str] = None
+    pde: Optional[str] = None
+    status: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -50,13 +50,13 @@ class LinkReviewRead(BaseModel):
     id: int
     link_status: str
     link_method: str
-    confidence_score: float | None = None
-    fuzzy_score: float | None = None
-    ai_score: float | None = None
-    ai_reason: str | None = None
+    confidence_score: Optional[float] = None
+    fuzzy_score: Optional[float] = None
+    ai_score: Optional[float] = None
+    ai_reason: Optional[str] = None
     locked: bool
     excluded: bool
-    review_notes: str | None = None
+    review_notes: Optional[str] = None
     source_product: SourceProductRead
     canonical_product: CanonicalProductRead
 
@@ -77,19 +77,19 @@ class DashboardSummary(BaseModel):
 
 class ReviewActionRequest(BaseModel):
     action: str
-    note: str | None = None
-    canonical_product_id: int | None = None
-    locked: bool | None = None
+    note: Optional[str] = None
+    canonical_product_id: Optional[int] = None
+    locked: Optional[bool] = None
 
 
 class ImportPreviewRow(BaseModel):
     row_number: int
-    data: dict[str, Any]
+    data: Dict[str, Any]
 
 
 class ImportPreviewResponse(BaseModel):
     detected_type: str
-    columns: list[str]
-    preview_rows: list[ImportPreviewRow]
-    missing_columns: list[str]
-    extra_columns: list[str]
+    columns: List[str]
+    preview_rows: List[ImportPreviewRow]
+    missing_columns: List[str]
+    extra_columns: List[str]

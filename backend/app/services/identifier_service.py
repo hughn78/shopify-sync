@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -8,7 +9,7 @@ from app.utils.normalizers import normalize_identifier
 
 
 class IdentifierService:
-    def resolve_exact_identifier(self, db: Session, identifier_type: str, identifier_value: str | None):
+    def resolve_exact_identifier(self, db: Session, identifier_type: str, identifier_value: Optional[str]):
         normalized = normalize_identifier(identifier_value)
         if not normalized:
             return None

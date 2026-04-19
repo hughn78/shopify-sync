@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -9,15 +10,15 @@ class InventoryService:
     def create_snapshot(
         self,
         db: Session,
-        source_product_id: int | None,
+        source_product_id: Optional[int],
         source_system_id: int,
         import_batch_id: int,
-        source_location: str | None,
-        on_hand: int | None,
-        available: int | None = None,
-        committed: int | None = None,
-        unavailable: int | None = None,
-        canonical_product_id: int | None = None,
+        source_location: Optional[str],
+        on_hand: Optional[int],
+        available: Optional[int] = None,
+        committed: Optional[int] = None,
+        unavailable: Optional[int] = None,
+        canonical_product_id: Optional[int] = None,
     ) -> InventorySnapshot:
         snapshot = InventorySnapshot(
             canonical_product_id=canonical_product_id,

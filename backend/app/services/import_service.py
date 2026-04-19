@@ -4,7 +4,7 @@ import csv
 import hashlib
 from io import BytesIO, StringIO
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, List
 
 import pandas as pd
 from sqlalchemy.orm import Session
@@ -32,7 +32,7 @@ class ImportService:
             return 'SHOPIFY_PRODUCTS'
         return 'FOS'
 
-    def parse_file(self, filename: str, content: bytes) -> tuple[str, list[dict]]:
+    def parse_file(self, filename: str, content: bytes) -> Tuple[str, List[dict]]:
         suffix = Path(filename).suffix.lower()
         if suffix in {'.csv', '.txt'}:
             text = content.decode('utf-8-sig', errors='ignore')
