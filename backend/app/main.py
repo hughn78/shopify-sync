@@ -144,11 +144,17 @@ def review_options(db: Session = Depends(get_db)):
 
 @app.get('/api/source-products')
 def list_source_products(source: Optional[str] = None, db: Session = Depends(get_db)):
-    stmt = select(SourceProduct)
+    stmt = select(SourceProduct, SourceSystem.code.label('source_code')).join(SourceSystem, SourceSystem.id == SourceProduct.source_system_id)
     if source:
-        system = source_product_service.get_source_system(db, source)
-        stmt = stmt.where(SourceProduct.source_system_id == system.id)
-    return db.scalars(stmt.order_by(SourceProduct.id.desc())).all()
+        stmt = stmt.where(SourceSystem.code == source)
+    rows = db.execute(stmt.order_by(SourceProduct.id.desc())).all()
+    return [
+        {
+            **source_product.__dict__,
+            'source_code': source_code,
+        }
+        for source_product, source_code in rows
+    ]
 
 
 @app.get('/api/link-review')
@@ -242,6 +248,15 @@ def export_inventory(run_id: int, db: Session = Depends(get_db)):
 @app.get('/api/audit-summary')
 def audit_summary(db: Session = Depends(get_db)):
     return audit_service.summary(db)
+
+
+@app.get('/api/import-batches')
+def list_import_batches(import_type: Optional[str] = None, db: Session = Depends(get_db)):
+    from app.models import ImportBatch
+    stmt = select(ImportBatch)
+    if import_type:
+        stmt = stmt.where(ImportBatch.import_type == import_type)
+    return db.scalars(stmt.order_by(ImportBatch.id.desc())).all()
 
 
 @app.get('/api/settings')

@@ -31,6 +31,17 @@ export interface SourceProduct {
   status?: string;
   vendor?: string;
   product_type?: string;
+  source_code?: string;
+  raw_payload_json?: Record<string, unknown>;
+}
+
+export interface ImportBatch {
+  id: number;
+  import_type: string;
+  filename: string;
+  row_count: number;
+  status: string;
+  created_at: string;
 }
 
 export interface CandidateSummary {
