@@ -67,48 +67,52 @@ async def preview_import(file: UploadFile = File(...)):
 
 
 @app.post('/api/imports')
-async def import_file(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    content = await file.read()
-    detected_type, rows = import_service.parse_file(file.filename, content)
-    batch = import_service.create_batch(db, detected_type, file.filename, content, len(rows))
+async def import_file(files: list[UploadFile] = File(...), db: Session = Depends(get_db)):
+    results = []
+    for file in files:
+        content = await file.read()
+        detected_type, rows = import_service.parse_file(file.filename, content)
+        batch = import_service.create_batch(db, detected_type, file.filename, content, len(rows))
 
-    system = source_product_service.get_source_system(db, detected_type)
+        system = source_product_service.get_source_system(db, detected_type)
 
-    for idx, row in enumerate(rows, start=1):
-        normalized = normalization_service.normalize_source_row(row, detected_type)
-        if detected_type == 'SHOPIFY_PRODUCTS':
-            key = f"{row.get('Handle', '')}:{row.get('Variant SKU', '')}:{idx}"
-        elif detected_type == 'SHOPIFY_INVENTORY':
-            key = f"{row.get('Handle', '')}:{row.get('SKU', '')}:{row.get('Location', '')}:{idx}"
-        else:
-            key = f"{row.get('APN', '')}:{row.get('PDE', '')}:{idx}"
-        source_product = source_product_service.upsert_source_product(db, detected_type, key, {**row, **normalized}, batch.id)
+        for idx, row in enumerate(rows, start=1):
+            normalized = normalization_service.normalize_source_row(row, detected_type)
+            if detected_type == 'SHOPIFY_PRODUCTS':
+                key = f"{row.get('Handle', '')}:{row.get('Variant SKU', '')}:{idx}"
+            elif detected_type == 'SHOPIFY_INVENTORY':
+                key = f"{row.get('Handle', '')}:{row.get('SKU', '')}:{row.get('Location', '')}:{idx}"
+            else:
+                key = f"{row.get('APN', '')}:{row.get('PDE', '')}:{idx}"
+            source_product = source_product_service.upsert_source_product(db, detected_type, key, {**row, **normalized}, batch.id)
 
-        if detected_type == 'SHOPIFY_INVENTORY':
-            inventory_service.create_snapshot(
-                db,
-                source_product_id=source_product.id,
-                source_system_id=system.id,
-                import_batch_id=batch.id,
-                source_location=normalized.get('location'),
-                on_hand=_coerce_int(row.get('On hand (current)') or row.get('On Hand (current)') or row.get('On hand') or row.get('on_hand')),
-                available=_coerce_int(row.get('Available')),
-                committed=_coerce_int(row.get('Committed')),
-                unavailable=_coerce_int(row.get('Unavailable')),
-            )
-        elif detected_type == 'FOS':
-            inventory_service.create_snapshot(
-                db,
-                source_product_id=source_product.id,
-                source_system_id=system.id,
-                import_batch_id=batch.id,
-                source_location='fos',
-                on_hand=_coerce_int(row.get('SOH')),
-            )
+            if detected_type == 'SHOPIFY_INVENTORY':
+                inventory_service.create_snapshot(
+                    db,
+                    source_product_id=source_product.id,
+                    source_system_id=system.id,
+                    import_batch_id=batch.id,
+                    source_location=normalized.get('location'),
+                    on_hand=_coerce_int(row.get('On hand (current)') or row.get('On Hand (current)') or row.get('On hand') or row.get('on_hand')),
+                    available=_coerce_int(row.get('Available')),
+                    committed=_coerce_int(row.get('Committed')),
+                    unavailable=_coerce_int(row.get('Unavailable')),
+                )
+            elif detected_type == 'FOS':
+                inventory_service.create_snapshot(
+                    db,
+                    source_product_id=source_product.id,
+                    source_system_id=system.id,
+                    import_batch_id=batch.id,
+                    source_location='fos',
+                    on_hand=_coerce_int(row.get('SOH')),
+                )
 
-        matching_service.resolve_source_product(db, source_product)
+            matching_service.resolve_source_product(db, source_product)
 
-    return {'batch_id': batch.id, 'import_type': detected_type, 'rows': len(rows)}
+        results.append({'batch_id': batch.id, 'import_type': detected_type, 'rows': len(rows), 'filename': file.filename})
+
+    return {'imports': results, 'count': len(results)}
 
 
 @app.get('/api/canonical-products')

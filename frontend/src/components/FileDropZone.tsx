@@ -4,22 +4,24 @@ import { cn } from '@/lib/utils';
 
 interface FileDropZoneProps {
   accept: string;
-  onFile: (file: File) => void;
+  onFiles: (files: File[]) => void;
   label: string;
   hint?: string;
   isLoading?: boolean;
   disabled?: boolean;
-  selectedFile?: File | null;
+  selectedFiles?: File[];
+  multiple?: boolean;
 }
 
 export function FileDropZone({
   accept,
-  onFile,
+  onFiles,
   label,
   hint,
   isLoading = false,
   disabled = false,
-  selectedFile,
+  selectedFiles = [],
+  multiple = false,
 }: FileDropZoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -28,10 +30,10 @@ export function FileDropZone({
       e.preventDefault();
       setIsDragOver(false);
       if (disabled || isLoading) return;
-      const file = e.dataTransfer.files?.[0];
-      if (file) onFile(file);
+      const files = Array.from(e.dataTransfer.files || []);
+      if (files.length) onFiles(files);
     },
-    [disabled, isLoading, onFile],
+    [disabled, isLoading, onFiles],
   );
 
   return (
@@ -51,24 +53,27 @@ export function FileDropZone({
       <input
         type="file"
         accept={accept}
+        multiple={multiple}
         className="hidden"
         disabled={disabled || isLoading}
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) onFile(file);
+          const files = Array.from(e.target.files || []);
+          if (files.length) onFiles(files);
           e.target.value = '';
         }}
       />
       {isLoading ? (
         <Loader2 className="h-8 w-8 text-primary animate-spin" />
-      ) : selectedFile ? (
+      ) : selectedFiles.length ? (
         <FileCheck2 className="h-8 w-8 text-green-600" />
       ) : (
         <Upload className="h-8 w-8 text-muted-foreground" />
       )}
       <div className="text-sm font-medium text-foreground">{label}</div>
-      {selectedFile ? (
-        <div className="text-xs text-muted-foreground truncate max-w-full">{selectedFile.name}</div>
+      {selectedFiles.length ? (
+        <div className="text-xs text-muted-foreground max-w-full">
+          {selectedFiles.length === 1 ? selectedFiles[0].name : `${selectedFiles.length} files selected`}
+        </div>
       ) : hint ? (
         <div className="text-xs text-muted-foreground">{hint}</div>
       ) : null}

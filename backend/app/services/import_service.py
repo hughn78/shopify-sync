@@ -4,7 +4,7 @@ import csv
 import hashlib
 from io import BytesIO, StringIO
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable, List, Tuple
 
 import pandas as pd
 from sqlalchemy.orm import Session
@@ -13,24 +13,38 @@ from app.models import ImportBatch
 
 
 FILE_COLUMN_HINTS = {
-    'SHOPIFY_PRODUCTS': {'Handle', 'Title', 'Variant SKU', 'Variant Barcode'},
-    'SHOPIFY_INVENTORY': {'Handle', 'Title', 'SKU', 'Location'},
-    'FOS': {'Stock Name', 'Full Name', 'APN', 'SOH'},
+    'SHOPIFY_PRODUCTS': {'Handle', 'Title'},
+    'SHOPIFY_INVENTORY': {'Handle', 'Title'},
+    'FOS': {'APN', 'SOH'},
 }
 
 
 class ImportService:
     def detect_type(self, columns: Iterable[str], filename: str) -> str:
-        colset = set(columns)
-        for import_type, required in FILE_COLUMN_HINTS.items():
-            if required.issubset(colset):
-                return import_type
+        normalized_columns = {str(column).strip() for column in columns if str(column).strip()}
+        lower_columns = {column.lower() for column in normalized_columns}
         lower_name = filename.lower()
+
+        if {'stock name', 'soh'}.issubset(lower_columns) or ('apn' in lower_columns and 'soh' in lower_columns):
+            return 'FOS'
+
+        if 'location' in lower_columns and ({'sku', 'available'} & lower_columns or 'on hand' in ' '.join(lower_columns)):
+            return 'SHOPIFY_INVENTORY'
+
+        if 'variant sku' in lower_columns or 'variant barcode' in lower_columns or 'body (html)' in lower_columns:
+            return 'SHOPIFY_PRODUCTS'
+
         if 'inventory' in lower_name:
             return 'SHOPIFY_INVENTORY'
-        if 'product' in lower_name:
+        if 'product' in lower_name or 'products' in lower_name:
             return 'SHOPIFY_PRODUCTS'
-        return 'FOS'
+        if 'fos' in lower_name or 'cleaned' in lower_name or 'stock' in lower_name:
+            return 'FOS'
+
+        for import_type, required in FILE_COLUMN_HINTS.items():
+            if {value.lower() for value in required}.issubset(lower_columns):
+                return import_type
+        raise ValueError(f'Could not detect import type for {filename}. Columns seen: {sorted(normalized_columns)[:12]}')
 
     def parse_file(self, filename: str, content: bytes) -> Tuple[str, List[dict]]:
         suffix = Path(filename).suffix.lower()
