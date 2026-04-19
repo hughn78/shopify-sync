@@ -4,7 +4,7 @@ Pharmacy Stock Sync is a local desktop-first inventory reconciliation app for ph
 
 ## Stack
 
-- Python backend (FastAPI, SQLAlchemy, SQLite)
+- Python backend (FastAPI, SQLAlchemy, SQLite, Alembic)
 - React + TypeScript frontend (Vite)
 - Local-only API bridge
 - Fully local data storage and export generation
@@ -15,9 +15,10 @@ Pharmacy Stock Sync is a local desktop-first inventory reconciliation app for ph
 
 ```bash
 cd backend
-python3 -m venv .venv
+/usr/bin/python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
@@ -68,6 +69,7 @@ See `docs/schema.md`.
 
 - `exports/example_inventory_sync.csv`
 - `exports/example_barcode_update.csv`
+- generated run outputs are written to `exports/generated/`
 
 ## Confidence thresholds and sync rules
 
@@ -81,6 +83,26 @@ Important values:
 - `PRIMARY_SHOPIFY_LOCATION_PATTERN`
 - `RESERVE_STOCK_BUFFER`
 - `AI_ENABLED`
+
+## Automated sample import to export flow
+
+A repeatable sample workflow is included:
+
+```bash
+cd backend
+source .venv/bin/activate
+PYTHONPATH=. python scripts/run_sample_flow.py
+```
+
+What it does:
+- resets the local schema
+- imports all sample files
+- creates or updates source products
+- resolves matches
+- auto-approves review rows for the scripted sample run
+- runs reconciliation through canonical products
+- creates inventory and link report exports
+- records export history
 
 ## Example end-to-end flow using sample files
 
@@ -100,6 +122,8 @@ Important values:
 - schema docs in `docs/schema.md`
 - sample inputs in `sample_data/`
 - example exports in `exports/`
+- Alembic migration baseline
+- automated sample import-to-export flow script
 
 ## FutureExtensions
 

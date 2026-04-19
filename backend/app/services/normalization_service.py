@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from app.utils.normalizers import normalize_blank, normalize_identifier, normalize_location, normalize_name_for_match
 
 

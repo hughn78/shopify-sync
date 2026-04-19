@@ -31,7 +31,6 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
-Base.metadata.create_all(bind=engine)
 
 import_service = ImportService()
 normalization_service = NormalizationService()

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 class PricingService:
     def compare_prices(self, shopify_price: float | None, fos_price: float | None) -> dict:
         if shopify_price is None or fos_price is None:

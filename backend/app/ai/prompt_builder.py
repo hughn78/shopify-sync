@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 def build_match_prompt(source_title: str, candidates: list[dict]) -> str:
     return (
         'You are assisting pharmacy product identity resolution. '

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from rapidfuzz import fuzz
 from sqlalchemy import select
 from sqlalchemy.orm import Session
