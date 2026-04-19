@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import CanonicalProduct, SourceProduct, SourceProductLink
+from app.models import CandidateLink, CanonicalProduct, SourceProduct, SourceProductLink
 from app.routes.dashboard import get_dashboard_summary
 from app.schemas import ImportPreviewResponse, ImportPreviewRow, ReviewActionRequest
 from app.services.audit_service import AuditService
@@ -132,6 +132,9 @@ def link_review(db: Session = Depends(get_db)):
     for link in links:
         source_product = db.get(SourceProduct, link.source_product_id)
         canonical_product = db.get(CanonicalProduct, link.canonical_product_id)
+        candidates = db.scalars(
+            select(CandidateLink).where(CandidateLink.source_product_id == link.source_product_id).order_by(CandidateLink.candidate_rank.asc())
+        ).all()
         payload.append({
             'id': link.id,
             'link_status': link.link_status,
@@ -145,6 +148,20 @@ def link_review(db: Session = Depends(get_db)):
             'review_notes': link.review_notes,
             'source_product': source_product,
             'canonical_product': canonical_product,
+            'candidates': [
+                {
+                    'id': candidate.id,
+                    'candidate_canonical_product_id': candidate.candidate_canonical_product_id,
+                    'candidate_rank': candidate.candidate_rank,
+                    'match_method': candidate.match_method,
+                    'fuzzy_score': candidate.fuzzy_score,
+                    'ai_score': candidate.ai_score,
+                    'ai_reason': candidate.ai_reason,
+                    'proposed_action': candidate.proposed_action,
+                    'canonical_product': db.get(CanonicalProduct, candidate.candidate_canonical_product_id) if candidate.candidate_canonical_product_id else None,
+                }
+                for candidate in candidates
+            ],
         })
     return payload
 

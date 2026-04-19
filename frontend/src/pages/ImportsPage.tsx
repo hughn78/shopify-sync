@@ -10,9 +10,11 @@ export function ImportsPage() {
   const [preview, setPreview] = useState<ImportPreviewResponse | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [working, setWorking] = useState(false);
+  const [lastImport, setLastImport] = useState<{ batch_id: number; import_type: string; rows: number } | null>(null);
 
   async function previewFile(file: File) {
     setSelectedFile(file);
+    setLastImport(null);
     const data = await uploadFile<ImportPreviewResponse>('/imports/preview', file);
     setPreview(data);
   }
@@ -21,6 +23,7 @@ export function ImportsPage() {
     setWorking(true);
     try {
       const result = await uploadFile<{ batch_id: number; import_type: string; rows: number }>('/imports', file);
+      setLastImport(result);
       toast.success(`Imported ${result.rows} rows as ${result.import_type}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Import failed');
@@ -52,12 +55,19 @@ export function ImportsPage() {
         ) : null}
       </div>
 
+      {lastImport ? (
+        <div className="rounded-lg border border-border bg-card p-4 mb-6 text-sm">
+          <strong>Last import complete.</strong> Batch {lastImport.batch_id}, type {lastImport.import_type}, rows {lastImport.rows}.
+        </div>
+      ) : null}
+
       {preview ? (
         <div className="space-y-4">
           <div className="rounded-lg border border-border bg-card p-4 text-sm">
             <div><strong>Detected:</strong> {preview.detected_type}</div>
             <div><strong>Missing columns:</strong> {preview.missing_columns.join(', ') || 'none'}</div>
             <div><strong>Extra columns:</strong> {preview.extra_columns.join(', ') || 'none'}</div>
+            <div><strong>Preview rows:</strong> {preview.preview_rows.length}</div>
           </div>
           <SimpleTable
             columns={preview.columns}

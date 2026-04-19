@@ -29,6 +29,20 @@ export interface SourceProduct {
   apn?: string;
   pde?: string;
   status?: string;
+  vendor?: string;
+  product_type?: string;
+}
+
+export interface CandidateSummary {
+  id: number;
+  candidate_canonical_product_id?: number;
+  candidate_rank: number;
+  match_method: string;
+  fuzzy_score?: number;
+  ai_score?: number;
+  ai_reason?: string;
+  proposed_action?: string;
+  canonical_product?: CanonicalProduct;
 }
 
 export interface LinkReviewItem {
@@ -44,6 +58,7 @@ export interface LinkReviewItem {
   review_notes?: string;
   source_product: SourceProduct;
   canonical_product: CanonicalProduct;
+  candidates?: CandidateSummary[];
 }
 
 export interface ImportPreviewResponse {
@@ -52,4 +67,17 @@ export interface ImportPreviewResponse {
   preview_rows: { row_number: number; data: Record<string, unknown> }[];
   missing_columns: string[];
   extra_columns: string[];
+}
+
+export interface ReconciliationRow {
+  id: number;
+  shopify_handle?: string;
+  shopify_title?: string;
+  fos_stock_name?: string;
+  shopify_current_on_hand?: number;
+  fos_soh?: number;
+  proposed_shopify_on_hand?: number;
+  delta?: number;
+  sync_status: string;
+  warning_flags_json?: { warnings?: string[] };
 }

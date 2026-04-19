@@ -17,15 +17,18 @@ class ReviewService:
         }
         if action == 'approve':
             link.link_status = 'APPROVED'
+            link.excluded = False
             link.approved_at = datetime.utcnow()
         elif action == 'reject':
             link.link_status = 'REJECTED'
+            link.excluded = False
         elif action == 'exclude':
             link.link_status = 'EXCLUDED'
             link.excluded = True
         elif action == 'reassign' and canonical_product_id:
             link.canonical_product_id = canonical_product_id
             link.link_status = 'APPROVED'
+            link.excluded = False
         elif action == 'create_canonical':
             canonical = CanonicalProduct(
                 canonical_name=f'Manual Canonical {link.source_product_id}',
@@ -38,6 +41,7 @@ class ReviewService:
             db.flush()
             link.canonical_product_id = canonical.id
             link.link_status = 'APPROVED'
+            link.excluded = False
         if locked is not None:
             link.locked = locked
         if note:

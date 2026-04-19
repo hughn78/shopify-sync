@@ -63,12 +63,11 @@ class MatchingService:
         candidates = self.candidate_service.generate_candidates(db, run_id, source_product)
         if candidates:
             top = candidates[0]
-            status = 'AUTO_ACCEPTED' if (top.fuzzy_score or 0) >= 90 else 'NEEDS_REVIEW'
             return self.linking_service.create_or_update_link(
                 db,
                 canonical_product_id=top.candidate_canonical_product_id,
                 source_product_id=source_product.id,
-                link_status=status,
+                link_status='NEEDS_REVIEW',
                 link_method='FUZZY_PLUS_AI',
                 confidence_score=top.fuzzy_score,
                 fuzzy_score=top.fuzzy_score,
@@ -83,4 +82,5 @@ class MatchingService:
             link_status='NEEDS_REVIEW',
             link_method='CREATED_NEW_CANONICAL',
             confidence_score=40,
+            ai_reason='No strong existing candidate found, created provisional canonical pending review',
         )
