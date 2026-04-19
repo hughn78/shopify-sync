@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 from typing import Any
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
@@ -8,10 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.database import Base, engine, get_db
-from app.models import CanonicalProduct, SourceProduct, SourceProductLink, SourceSystem
+from app.database import get_db
+from app.models import CanonicalProduct, SourceProduct, SourceProductLink
 from app.routes.dashboard import get_dashboard_summary
-from app.schemas import ImportPreviewResponse, ImportPreviewRow, LinkReviewRead, ReviewActionRequest
+from app.schemas import ImportPreviewResponse, ImportPreviewRow, ReviewActionRequest
 from app.services.audit_service import AuditService
 from app.services.export_service import ExportService
 from app.services.import_service import FILE_COLUMN_HINTS, ImportService
@@ -30,7 +29,6 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
-
 
 import_service = ImportService()
 normalization_service = NormalizationService()
@@ -115,8 +113,7 @@ async def import_file(file: UploadFile = File(...), db: Session = Depends(get_db
 
 @app.get('/api/canonical-products')
 def list_canonical_products(db: Session = Depends(get_db)):
-    items = db.scalars(select(CanonicalProduct).order_by(CanonicalProduct.id.desc())).all()
-    return items
+    return db.scalars(select(CanonicalProduct).order_by(CanonicalProduct.id.desc())).all()
 
 
 @app.get('/api/source-products')
@@ -170,9 +167,7 @@ def create_reconciliation_run(db: Session = Depends(get_db)):
 @app.get('/api/reconciliation-rows/{run_id}')
 def list_reconciliation_rows(run_id: int, db: Session = Depends(get_db)):
     from app.models import InventoryReconciliationRow
-
-    rows = db.scalars(select(InventoryReconciliationRow).where(InventoryReconciliationRow.run_id == run_id)).all()
-    return rows
+    return db.scalars(select(InventoryReconciliationRow).where(InventoryReconciliationRow.run_id == run_id)).all()
 
 
 @app.post('/api/exports/inventory/{run_id}')
@@ -189,7 +184,6 @@ def audit_summary(db: Session = Depends(get_db)):
 @app.get('/api/settings')
 def settings():
     from app.config import settings as app_settings
-
     return app_settings.model_dump()
 
 

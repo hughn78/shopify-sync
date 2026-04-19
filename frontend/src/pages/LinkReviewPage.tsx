@@ -1,25 +1,37 @@
 import { useEffect, useState } from 'react';
-import { api } from '../lib/api';
-import { SimpleTable } from '../components/Table';
+import { toast } from 'sonner';
+import { PageHeader } from '@/components/PageHeader';
+import { SimpleTable } from '@/components/Table';
+import { api } from '@/lib/api';
+import type { LinkReviewItem } from '@/lib/types';
 
 export function LinkReviewPage() {
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<LinkReviewItem[]>([]);
 
-  const load = () => api('/link-review').then(setItems);
-  useEffect(() => { load(); }, []);
+  function load() {
+    api<LinkReviewItem[]>('/link-review').then(setItems).catch(console.error);
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
 
   async function act(id: number, action: string) {
-    await api(`/link-review/${id}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, note: `${action} from UI` }),
-    });
-    load();
+    try {
+      await api(`/link-review/${id}`, {
+        method: 'POST',
+        body: JSON.stringify({ action, note: `${action} from integrated frontend` }),
+      });
+      toast.success(`Link ${action}d`);
+      load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Action failed');
+    }
   }
 
   return (
     <div>
-      <h2>Link Review</h2>
+      <PageHeader title="Link Review" subtitle="Review and approve source-to-canonical links before operational use." />
       <SimpleTable
         columns={['Source Title', 'Canonical Product', 'Status', 'Method', 'Confidence', 'AI Reason', 'Actions']}
         rows={items.map((item) => [
@@ -27,15 +39,21 @@ export function LinkReviewPage() {
           item.canonical_product?.canonical_name || '',
           item.link_status,
           item.link_method,
-          item.confidence_score || item.fuzzy_score || '',
+          String(item.confidence_score ?? item.fuzzy_score ?? ''),
           item.ai_reason || '',
-          <div className="button-row" key={item.id}>
+          `Approve / Reject / Exclude`,
+        ])}
+      />
+      <div className="mt-4 flex flex-wrap gap-2">
+        {items.slice(0, 10).map((item) => (
+          <div key={item.id} className="rounded border border-border p-3 bg-card flex items-center gap-2">
+            <span className="text-sm flex-1">{item.source_product?.title}</span>
             <button onClick={() => act(item.id, 'approve')}>Approve</button>
             <button onClick={() => act(item.id, 'reject')}>Reject</button>
             <button onClick={() => act(item.id, 'exclude')}>Exclude</button>
-          </div>,
-        ])}
-      />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
