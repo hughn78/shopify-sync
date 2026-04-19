@@ -16,6 +16,9 @@ FILE_COLUMN_HINTS = {
     'SHOPIFY_PRODUCTS': {'Handle', 'Title'},
     'SHOPIFY_INVENTORY': {'Handle', 'Title'},
     'FOS': {'APN', 'SOH'},
+    'PRICEBOOK': {'Product', 'Wholesale Price'},
+    'MASTERCATALOG': {'APN', 'Name'},
+    'SCRAPED_CATALOG': {'name', 'slug', 'price'},
 }
 
 
@@ -27,6 +30,18 @@ class ImportService:
 
         if {'stock name', 'soh'}.issubset(lower_columns) or ('apn' in lower_columns and 'soh' in lower_columns):
             return 'FOS'
+
+        if {'product', 'wholesale price'} & lower_columns and ('api pde' in lower_columns or 'wholesale price' in lower_columns):
+            return 'PRICEBOOK'
+
+        if {'description', 'price gst inc'} & lower_columns and ('pde' in lower_columns or 'barcode' in lower_columns):
+            return 'PRICEBOOK'
+
+        if 'name' in lower_columns and 'price' in lower_columns and ('category' in lower_columns or 'subcategory' in lower_columns):
+            return 'MASTERCATALOG'
+
+        if 'name' in lower_columns and 'slug' in lower_columns and 'price' in lower_columns:
+            return 'SCRAPED_CATALOG'
 
         if 'location' in lower_columns and ({'sku', 'available'} & lower_columns or 'on hand' in ' '.join(lower_columns)):
             return 'SHOPIFY_INVENTORY'
@@ -40,6 +55,12 @@ class ImportService:
             return 'SHOPIFY_PRODUCTS'
         if 'fos' in lower_name or 'cleaned' in lower_name or 'stock' in lower_name:
             return 'FOS'
+        if 'pricebook' in lower_name or 'price book' in lower_name:
+            return 'PRICEBOOK'
+        if 'mastercatalog' in lower_name or 'master catalog' in lower_name:
+            return 'MASTERCATALOG'
+        if 'scrape' in lower_name or 'scraped' in lower_name:
+            return 'SCRAPED_CATALOG'
 
         for import_type, required in FILE_COLUMN_HINTS.items():
             if {value.lower() for value in required}.issubset(lower_columns):

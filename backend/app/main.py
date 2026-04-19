@@ -82,8 +82,14 @@ async def import_file(files: list[UploadFile] = File(...), db: Session = Depends
                 key = f"{row.get('Handle', '')}:{row.get('Variant SKU', '')}:{idx}"
             elif detected_type == 'SHOPIFY_INVENTORY':
                 key = f"{row.get('Handle', '')}:{row.get('SKU', '')}:{row.get('Location', '')}:{idx}"
-            else:
+            elif detected_type == 'FOS':
                 key = f"{row.get('APN', '')}:{row.get('PDE', '')}:{idx}"
+            elif detected_type == 'PRICEBOOK':
+                key = f"{row.get('API PDE', row.get('PDE', ''))}:{row.get('Barcode', '')}:{idx}"
+            elif detected_type == 'MASTERCATALOG':
+                key = f"{row.get('APN', '')}:{row.get('Name', '')}:{idx}"
+            else:
+                key = f"{row.get('product_id', row.get('slug', row.get('name', '')))}:{idx}"
             source_product = source_product_service.upsert_source_product(db, detected_type, key, {**row, **normalized}, batch.id)
 
             if detected_type == 'SHOPIFY_INVENTORY':
