@@ -82,6 +82,14 @@ class ReviewActionRequest(BaseModel):
     locked: Optional[bool] = None
 
 
+class BulkReviewActionRequest(BaseModel):
+    link_ids: List[int]
+    action: str
+    note: Optional[str] = None
+    canonical_product_id: Optional[int] = None
+    locked: Optional[bool] = None
+
+
 class ImportPreviewRow(BaseModel):
     row_number: int
     data: Dict[str, Any]

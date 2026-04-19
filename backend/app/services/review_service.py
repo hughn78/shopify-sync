@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional
+from typing import List, Optional
 
 from datetime import datetime
 
@@ -9,7 +9,16 @@ from app.models import CanonicalProduct, ManualReviewAction, SourceProductLink
 
 
 class ReviewService:
-    def apply_action(self, db: Session, link: SourceProductLink, action: str, note: Optional[str], canonical_product_id: Optional[int] = None, locked: Optional[bool] = None):
+    def apply_action(
+        self,
+        db: Session,
+        link: SourceProductLink,
+        action: str,
+        note: Optional[str],
+        canonical_product_id: Optional[int] = None,
+        locked: Optional[bool] = None,
+        commit: bool = True,
+    ):
         old = {
             'link_status': link.link_status,
             'canonical_product_id': link.canonical_product_id,
@@ -60,6 +69,34 @@ class ReviewService:
                 user_note=note,
             )
         )
-        db.commit()
-        db.refresh(link)
+        if commit:
+            db.commit()
+            db.refresh(link)
         return link
+
+    def apply_bulk_action(
+        self,
+        db: Session,
+        links: List[SourceProductLink],
+        action: str,
+        note: Optional[str],
+        canonical_product_id: Optional[int] = None,
+        locked: Optional[bool] = None,
+    ):
+        updated_links = []
+        for link in links:
+            updated_links.append(
+                self.apply_action(
+                    db,
+                    link,
+                    action,
+                    note,
+                    canonical_product_id=canonical_product_id,
+                    locked=locked,
+                    commit=False,
+                )
+            )
+        db.commit()
+        for link in updated_links:
+            db.refresh(link)
+        return updated_links

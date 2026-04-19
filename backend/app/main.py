@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import CandidateLink, CanonicalProduct, SourceProduct, SourceProductLink
 from app.routes.dashboard import get_dashboard_summary
-from app.schemas import ImportPreviewResponse, ImportPreviewRow, ReviewActionRequest
+from app.schemas import BulkReviewActionRequest, ImportPreviewResponse, ImportPreviewRow, ReviewActionRequest
 from app.services.audit_service import AuditService
 from app.services.export_service import ExportService
 from app.services.import_service import FILE_COLUMN_HINTS, ImportService
@@ -180,6 +180,26 @@ def link_review(db: Session = Depends(get_db)):
             ],
         })
     return payload
+
+
+@app.post('/api/link-review/bulk')
+def apply_bulk_review_action(request: BulkReviewActionRequest, db: Session = Depends(get_db)):
+    links = db.scalars(select(SourceProductLink).where(SourceProductLink.id.in_(request.link_ids))).all()
+    if not links:
+        raise HTTPException(status_code=404, detail='No matching links found')
+    updated_links = review_service.apply_bulk_action(
+        db,
+        links,
+        request.action,
+        request.note,
+        request.canonical_product_id,
+        request.locked,
+    )
+    return {
+        'count': len(updated_links),
+        'ids': [link.id for link in updated_links],
+        'action': request.action,
+    }
 
 
 @app.post('/api/link-review/{link_id}')

@@ -11,6 +11,7 @@ export function LinkReviewPage() {
   const [canonicals, setCanonicals] = useState<CanonicalProduct[]>([]);
   const [statusFilter, setStatusFilter] = useState<(typeof FILTERS)[number]>('ALL');
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   function load() {
     api<LinkReviewItem[]>('/link-review').then(setItems).catch(console.error);
@@ -26,6 +27,8 @@ export function LinkReviewPage() {
     return items.filter((item) => item.link_status === statusFilter);
   }, [items, statusFilter]);
 
+  const selectedVisibleIds = selectedIds.filter((id) => filtered.some((item) => item.id === id));
+
   async function act(id: number, action: string, extra?: Record<string, unknown>) {
     setBusyId(id);
     try {
@@ -35,11 +38,49 @@ export function LinkReviewPage() {
       });
       toast.success(`Link ${action}d`);
       load();
+      setSelectedIds((current) => current.filter((selectedId) => selectedId !== id));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Action failed');
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function bulkAct(action: 'approve' | 'reject' | 'exclude') {
+    if (!selectedVisibleIds.length) return;
+    setBusyId(-1);
+    try {
+      const result = await api<{ count: number }>(`/link-review/bulk`, {
+        method: 'POST',
+        body: JSON.stringify({
+          link_ids: selectedVisibleIds,
+          action,
+          note: `${action} in bulk from integrated frontend`,
+        }),
+      });
+      toast.success(`${action}d ${result.count} links`);
+      setSelectedIds((current) => current.filter((id) => !selectedVisibleIds.includes(id)));
+      load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Bulk action failed');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function toggleSelected(id: number) {
+    setSelectedIds((current) =>
+      current.includes(id) ? current.filter((selectedId) => selectedId !== id) : [...current, id],
+    );
+  }
+
+  function toggleAllVisible() {
+    if (selectedVisibleIds.length === filtered.length && filtered.length > 0) {
+      setSelectedIds((current) => current.filter((id) => !filtered.some((item) => item.id === id)));
+      return;
+    }
+    const visibleIds = filtered.map((item) => item.id);
+    setSelectedIds((current) => Array.from(new Set([...current, ...visibleIds])));
   }
 
   return (
@@ -53,9 +94,29 @@ export function LinkReviewPage() {
         ))}
       </div>
 
+      <div className="rounded-lg border border-border bg-card p-4 mb-4">
+        <div className="flex gap-2 flex-wrap items-center">
+          <button onClick={toggleAllVisible} disabled={!filtered.length || busyId !== null}>
+            {selectedVisibleIds.length === filtered.length && filtered.length > 0 ? 'Clear visible selection' : 'Select all visible'}
+          </button>
+          <div className="text-sm text-muted-foreground">Selected: {selectedVisibleIds.length}</div>
+          <button onClick={() => bulkAct('approve')} disabled={!selectedVisibleIds.length || busyId !== null}>Bulk approve</button>
+          <button onClick={() => bulkAct('reject')} disabled={!selectedVisibleIds.length || busyId !== null}>Bulk reject</button>
+          <button onClick={() => bulkAct('exclude')} disabled={!selectedVisibleIds.length || busyId !== null}>Bulk exclude</button>
+        </div>
+      </div>
+
       <div className="space-y-4">
         {filtered.map((item) => (
-          <ReviewCard key={item.id} item={item} canonicals={canonicals} busy={busyId === item.id} onAction={act} />
+          <ReviewCard
+            key={item.id}
+            item={item}
+            canonicals={canonicals}
+            busy={busyId === item.id || busyId === -1}
+            onAction={act}
+            selected={selectedIds.includes(item.id)}
+            onToggleSelected={() => toggleSelected(item.id)}
+          />
         ))}
       </div>
     </div>
@@ -67,11 +128,15 @@ function ReviewCard({
   canonicals,
   onAction,
   busy,
+  selected,
+  onToggleSelected,
 }: {
   item: LinkReviewItem;
   canonicals: CanonicalProduct[];
   onAction: (id: number, action: string, extra?: Record<string, unknown>) => void;
   busy: boolean;
+  selected: boolean;
+  onToggleSelected: () => void;
 }) {
   const [selectedCanonicalId, setSelectedCanonicalId] = useState<number | ''>(item.canonical_product?.id || '');
   const [expandedCandidateId, setExpandedCandidateId] = useState<number | null>(item.candidates?.[0]?.id ?? null);
@@ -83,13 +148,16 @@ function ReviewCard({
   if (item.excluded) warnings.push('This link is excluded from matching.');
 
   return (
-    <div className="rounded-lg border border-border bg-card p-5">
+    <div className="rounded-lg border border-border bg-card p-5" style={{ outline: selected ? '2px solid #4f7cff' : undefined }}>
       <div className="flex items-start justify-between gap-4 mb-4">
-        <div>
-          <div className="text-xs text-muted-foreground uppercase">Source product</div>
-          <div className="text-2xl font-bold">{item.source_product.title}</div>
-          <div className="text-sm text-muted-foreground mt-2">
-            Handle: {item.source_product.handle || 'n/a'} · SKU: {item.source_product.sku || 'n/a'} · APN: {item.source_product.apn || 'n/a'} · PDE: {item.source_product.pde || 'n/a'}
+        <div className="flex items-start gap-3">
+          <input type="checkbox" checked={selected} onChange={onToggleSelected} disabled={busy} />
+          <div>
+            <div className="text-xs text-muted-foreground uppercase">Source product</div>
+            <div className="text-2xl font-bold">{item.source_product.title}</div>
+            <div className="text-sm text-muted-foreground mt-2">
+              Handle: {item.source_product.handle || 'n/a'} · SKU: {item.source_product.sku || 'n/a'} · APN: {item.source_product.apn || 'n/a'} · PDE: {item.source_product.pde || 'n/a'}
+            </div>
           </div>
         </div>
         <div className="text-sm">
