@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/PageHeader';
 import { api } from '@/lib/api';
-import type { CandidateSummary, LinkReviewItem } from '@/lib/types';
+import type { CanonicalProduct, CandidateSummary, LinkReviewItem } from '@/lib/types';
 
 const FILTERS = ['ALL', 'NEEDS_REVIEW', 'APPROVED', 'AUTO_ACCEPTED', 'REJECTED', 'EXCLUDED', 'CONFLICT'] as const;
 
 export function LinkReviewPage() {
   const [items, setItems] = useState<LinkReviewItem[]>([]);
+  const [canonicals, setCanonicals] = useState<CanonicalProduct[]>([]);
   const [statusFilter, setStatusFilter] = useState<(typeof FILTERS)[number]>('ALL');
   const [busyId, setBusyId] = useState<number | null>(null);
 
@@ -17,6 +18,7 @@ export function LinkReviewPage() {
 
   useEffect(() => {
     load();
+    api<CanonicalProduct[]>('/review-options').then(setCanonicals).catch(console.error);
   }, []);
 
   const filtered = useMemo(() => {
@@ -24,12 +26,12 @@ export function LinkReviewPage() {
     return items.filter((item) => item.link_status === statusFilter);
   }, [items, statusFilter]);
 
-  async function act(id: number, action: string) {
+  async function act(id: number, action: string, extra?: Record<string, unknown>) {
     setBusyId(id);
     try {
       await api(`/link-review/${id}`, {
         method: 'POST',
-        body: JSON.stringify({ action, note: `${action} from integrated frontend` }),
+        body: JSON.stringify({ action, note: `${action} from integrated frontend`, ...(extra || {}) }),
       });
       toast.success(`Link ${action}d`);
       load();
@@ -53,14 +55,25 @@ export function LinkReviewPage() {
 
       <div className="space-y-4">
         {filtered.map((item) => (
-          <ReviewCard key={item.id} item={item} busy={busyId === item.id} onAction={act} />
+          <ReviewCard key={item.id} item={item} canonicals={canonicals} busy={busyId === item.id} onAction={act} />
         ))}
       </div>
     </div>
   );
 }
 
-function ReviewCard({ item, onAction, busy }: { item: LinkReviewItem; onAction: (id: number, action: string) => void; busy: boolean }) {
+function ReviewCard({
+  item,
+  canonicals,
+  onAction,
+  busy,
+}: {
+  item: LinkReviewItem;
+  canonicals: CanonicalProduct[];
+  onAction: (id: number, action: string, extra?: Record<string, unknown>) => void;
+  busy: boolean;
+}) {
+  const [selectedCanonicalId, setSelectedCanonicalId] = useState<number | ''>(item.canonical_product?.id || '');
   const warnings: string[] = [];
   if (item.link_method === 'CREATED_NEW_CANONICAL') warnings.push('New canonical was created automatically. Review before trusting.');
   if ((item.confidence_score ?? 0) < 90) warnings.push('Confidence below auto-accept threshold.');
@@ -113,10 +126,35 @@ function ReviewCard({ item, onAction, busy }: { item: LinkReviewItem; onAction: 
         </div>
       ) : null}
 
-      <div className="flex gap-2 flex-wrap">
-        <button onClick={() => onAction(item.id, 'approve')} disabled={busy}>Approve</button>
-        <button onClick={() => onAction(item.id, 'reject')} disabled={busy}>Reject</button>
-        <button onClick={() => onAction(item.id, 'exclude')} disabled={busy}>Exclude</button>
+      <div className="rounded border border-border p-4 mb-4">
+        <div className="text-xs text-muted-foreground uppercase mb-2">Manual controls</div>
+        <div className="flex gap-2 flex-wrap items-center">
+          <select
+            value={selectedCanonicalId}
+            onChange={(e) => setSelectedCanonicalId(e.target.value ? Number(e.target.value) : '')}
+            disabled={busy}
+          >
+            <option value="">Select canonical</option>
+            {canonicals.map((canonical) => (
+              <option key={canonical.id} value={canonical.id}>
+                {canonical.canonical_name}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => selectedCanonicalId && onAction(item.id, 'reassign', { canonical_product_id: selectedCanonicalId })}
+            disabled={busy || !selectedCanonicalId}
+          >
+            Reassign
+          </button>
+          <button onClick={() => onAction(item.id, 'create_canonical')} disabled={busy}>Create canonical</button>
+          <button onClick={() => onAction(item.id, 'approve')} disabled={busy}>Approve</button>
+          <button onClick={() => onAction(item.id, 'reject')} disabled={busy}>Reject</button>
+          <button onClick={() => onAction(item.id, 'exclude')} disabled={busy}>Exclude</button>
+          <button onClick={() => onAction(item.id, 'approve', { locked: !item.locked })} disabled={busy}>
+            {item.locked ? 'Unlock + approve' : 'Lock + approve'}
+          </button>
+        </div>
       </div>
     </div>
   );

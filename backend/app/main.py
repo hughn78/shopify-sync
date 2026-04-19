@@ -116,6 +116,22 @@ def list_canonical_products(db: Session = Depends(get_db)):
     return db.scalars(select(CanonicalProduct).order_by(CanonicalProduct.id.desc())).all()
 
 
+@app.get('/api/review-options')
+def review_options(db: Session = Depends(get_db)):
+    canonicals = db.scalars(select(CanonicalProduct).order_by(CanonicalProduct.canonical_name.asc())).all()
+    return [
+        {
+            'id': canonical.id,
+            'canonical_name': canonical.canonical_name,
+            'primary_barcode': canonical.primary_barcode,
+            'primary_apn': canonical.primary_apn,
+            'primary_pde': canonical.primary_pde,
+            'review_status': canonical.review_status,
+        }
+        for canonical in canonicals
+    ]
+
+
 @app.get('/api/source-products')
 def list_source_products(source: Optional[str] = None, db: Session = Depends(get_db)):
     stmt = select(SourceProduct)
