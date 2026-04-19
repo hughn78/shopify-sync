@@ -74,6 +74,8 @@ function ReviewCard({
   busy: boolean;
 }) {
   const [selectedCanonicalId, setSelectedCanonicalId] = useState<number | ''>(item.canonical_product?.id || '');
+  const [expandedCandidateId, setExpandedCandidateId] = useState<number | null>(item.candidates?.[0]?.id ?? null);
+  const selectedCandidate = item.candidates?.find((candidate) => candidate.id === expandedCandidateId) ?? null;
   const warnings: string[] = [];
   if (item.link_method === 'CREATED_NEW_CANONICAL') warnings.push('New canonical was created automatically. Review before trusting.');
   if ((item.confidence_score ?? 0) < 90) warnings.push('Confidence below auto-accept threshold.');
@@ -97,14 +99,45 @@ function ReviewCard({
         </div>
       </div>
 
-      <div className="rounded border border-border p-4 mb-4" style={{ background: '#f8f9fc' }}>
-        <div className="text-xs text-muted-foreground uppercase">Current canonical target</div>
-        <div className="text-sm font-medium mt-2">{item.canonical_product.canonical_name}</div>
-        <div className="text-sm text-muted-foreground mt-1">
-          Barcode: {item.canonical_product.primary_barcode || 'n/a'} · APN: {item.canonical_product.primary_apn || 'n/a'} · PDE: {item.canonical_product.primary_pde || 'n/a'}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="rounded border border-border p-4" style={{ background: '#f8f9fc' }}>
+          <div className="text-xs text-muted-foreground uppercase">Current canonical target</div>
+          <div className="text-sm font-medium mt-2">{item.canonical_product.canonical_name}</div>
+          <div className="text-sm text-muted-foreground mt-1">
+            Barcode: {item.canonical_product.primary_barcode || 'n/a'} · APN: {item.canonical_product.primary_apn || 'n/a'} · PDE: {item.canonical_product.primary_pde || 'n/a'}
+          </div>
+          {item.ai_reason ? <div className="text-sm mt-2"><strong>AI reason:</strong> {item.ai_reason}</div> : null}
+          {item.review_notes ? <div className="text-sm mt-2"><strong>Review note:</strong> {item.review_notes}</div> : null}
         </div>
-        {item.ai_reason ? <div className="text-sm mt-2"><strong>AI reason:</strong> {item.ai_reason}</div> : null}
-        {item.review_notes ? <div className="text-sm mt-2"><strong>Review note:</strong> {item.review_notes}</div> : null}
+
+        <div className="rounded border border-border p-4" style={{ background: '#f8f9fc' }}>
+          <div className="text-xs text-muted-foreground uppercase">Candidate comparison</div>
+          {selectedCandidate ? (
+            <>
+              <div className="text-sm font-medium mt-2">{selectedCandidate.canonical_product?.canonical_name || 'Unknown canonical'}</div>
+              <div className="text-sm text-muted-foreground mt-1">
+                Barcode: {selectedCandidate.canonical_product?.primary_barcode || 'n/a'} · APN: {selectedCandidate.canonical_product?.primary_apn || 'n/a'} · PDE: {selectedCandidate.canonical_product?.primary_pde || 'n/a'}
+              </div>
+              <div className="text-sm mt-2">
+                <strong>Match:</strong> {selectedCandidate.match_method} · <strong>Fuzzy:</strong> {selectedCandidate.fuzzy_score ?? 'n/a'} · <strong>Proposed:</strong> {selectedCandidate.proposed_action || 'n/a'}
+              </div>
+              {selectedCandidate.ai_reason ? <div className="text-sm mt-2"><strong>AI:</strong> {selectedCandidate.ai_reason}</div> : null}
+              <div className="mt-3">
+                <button
+                  onClick={() =>
+                    selectedCandidate.candidate_canonical_product_id &&
+                    onAction(item.id, 'reassign', { canonical_product_id: selectedCandidate.candidate_canonical_product_id })
+                  }
+                  disabled={busy || !selectedCandidate.candidate_canonical_product_id}
+                >
+                  Choose this candidate
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="text-sm text-muted-foreground mt-2">No candidate selected.</div>
+          )}
+        </div>
       </div>
 
       {warnings.length ? (
@@ -120,7 +153,17 @@ function ReviewCard({
           <div className="text-xs text-muted-foreground uppercase mb-2">Candidate shortlist</div>
           <div className="space-y-2">
             {item.candidates.map((candidate) => (
-              <CandidateRow key={candidate.id} candidate={candidate} />
+              <CandidateRow
+                key={candidate.id}
+                candidate={candidate}
+                selected={candidate.id === expandedCandidateId}
+                onSelect={() => setExpandedCandidateId(candidate.id)}
+                onChoose={() =>
+                  candidate.candidate_canonical_product_id &&
+                  onAction(item.id, 'reassign', { canonical_product_id: candidate.candidate_canonical_product_id })
+                }
+                busy={busy}
+              />
             ))}
           </div>
         </div>
@@ -145,7 +188,7 @@ function ReviewCard({
             onClick={() => selectedCanonicalId && onAction(item.id, 'reassign', { canonical_product_id: selectedCanonicalId })}
             disabled={busy || !selectedCanonicalId}
           >
-            Reassign
+            Reassign manually
           </button>
           <button onClick={() => onAction(item.id, 'create_canonical')} disabled={busy}>Create canonical</button>
           <button onClick={() => onAction(item.id, 'approve')} disabled={busy}>Approve</button>
@@ -160,12 +203,35 @@ function ReviewCard({
   );
 }
 
-function CandidateRow({ candidate }: { candidate: CandidateSummary }) {
+function CandidateRow({
+  candidate,
+  selected,
+  onSelect,
+  onChoose,
+  busy,
+}: {
+  candidate: CandidateSummary;
+  selected: boolean;
+  onSelect: () => void;
+  onChoose: () => void;
+  busy: boolean;
+}) {
   return (
-    <div className="rounded border border-border p-3 text-sm">
-      <div><strong>#{candidate.candidate_rank}</strong> {candidate.canonical_product?.canonical_name || 'Unknown canonical'}</div>
-      <div className="text-muted-foreground">Method: {candidate.match_method} · Fuzzy: {candidate.fuzzy_score ?? 'n/a'} · Proposed: {candidate.proposed_action || 'n/a'}</div>
-      {candidate.ai_reason ? <div className="text-muted-foreground">AI: {candidate.ai_reason}</div> : null}
+    <div
+      className="rounded border border-border p-3 text-sm"
+      style={{ background: selected ? '#eef4ff' : '#fff' }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div><strong>#{candidate.candidate_rank}</strong> {candidate.canonical_product?.canonical_name || 'Unknown canonical'}</div>
+          <div className="text-muted-foreground">Method: {candidate.match_method} · Fuzzy: {candidate.fuzzy_score ?? 'n/a'} · Proposed: {candidate.proposed_action || 'n/a'}</div>
+          {candidate.ai_reason ? <div className="text-muted-foreground">AI: {candidate.ai_reason}</div> : null}
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={onSelect} disabled={busy}>{selected ? 'Comparing' : 'Compare'}</button>
+          <button onClick={onChoose} disabled={busy || !candidate.candidate_canonical_product_id}>Use candidate</button>
+        </div>
+      </div>
     </div>
   );
 }
