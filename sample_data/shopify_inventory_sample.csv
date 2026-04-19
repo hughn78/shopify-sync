@@ -1,0 +1,4 @@
+Handle,Title,SKU,Location,On hand (current),Available,Committed,Unavailable
+panadol-500,Panadol 500mg Tablets 20,SKU-PAN-20,Main Store 310A,4,4,0,0
+nurofen-kids-orange,Nurofen For Children Orange 100mL,SKU-NURO-100,Main Store 310A,2,2,0,0
+vitamin-c-500,Vitamin C 500mg 100 Tablets,SKU-VITC-100,Main Store 310A,9,9,0,0
