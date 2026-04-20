@@ -310,6 +310,11 @@ def export_inventory(run_id: int, db: Session = Depends(get_db)):
     return {'file_path': str(path)}
 
 
+@app.post('/api/exports/shopify-upload/{run_id}')
+def export_shopify_upload_bundle(run_id: int, db: Session = Depends(get_db)):
+    return export_service.export_shopify_upload_bundle(db, run_id)
+
+
 @app.get('/api/audit-summary')
 def audit_summary(db: Session = Depends(get_db)):
     return audit_service.summary(db)
