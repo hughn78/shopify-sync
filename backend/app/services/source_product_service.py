@@ -37,6 +37,11 @@ class SourceProductService:
         )
         now = _utcnow()
         payload = {
+            'external_product_id': data.get('external_product_id') or data.get('Handle') or data.get('handle') or data.get('product_id') or data.get('slug') or source_record_key,
+            'external_variant_id': data.get('external_variant_id'),
+            'external_inventory_item_id': data.get('external_inventory_item_id'),
+            'external_location_id': data.get('external_location_id'),
+            'source_location_name': data.get('source_location_name') or data.get('Location') or data.get('location'),
             'handle': data.get('Handle') or data.get('handle') or data.get('slug') or data.get('url'),
             'title': data.get('Title') or data.get('title') or data.get('name') or data.get('Name') or data.get('Product') or data.get('Description') or data.get('Stock Name') or data.get('Full Name') or 'Untitled',
             'normalized_title': data.get('normalized_title'),
@@ -60,7 +65,6 @@ class SourceProductService:
             product = SourceProduct(
                 source_system_id=system.id,
                 source_record_key=source_record_key,
-                external_product_id=data.get('Handle') or data.get('handle') or data.get('product_id') or data.get('slug') or source_record_key,
                 first_seen_at=now,
                 **payload,
             )

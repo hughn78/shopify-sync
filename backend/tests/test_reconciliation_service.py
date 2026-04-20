@@ -33,6 +33,10 @@ def reconciliation_db(db):
         source_record_key='shopify:1',
         title='Paracetamol 500mg',
         handle='paracetamol-500mg',
+        external_variant_id='gid://shopify/ProductVariant/111',
+        external_inventory_item_id='gid://shopify/InventoryItem/222',
+        external_location_id='gid://shopify/Location/333',
+        source_location_name='Main Store 310A',
     )
     fos_product = SourceProduct(
         source_system_id=fos_system.id,
@@ -105,6 +109,19 @@ class TestReconciliationService:
         assert rows[0].fos_soh == 20
         assert rows[0].shopify_current_on_hand == 10
         assert rows[0].proposed_shopify_on_hand == 20
+
+    def test_preserves_shopify_identity_fields(self, reconciliation_db):
+        from app.models import InventoryReconciliationRow
+        from sqlalchemy import select
+
+        db, *_ = reconciliation_db
+        svc = ReconciliationService()
+        run = svc.run(db)
+        rows = db.scalars(select(InventoryReconciliationRow).where(InventoryReconciliationRow.run_id == run.id)).all()
+        assert rows[0].shopify_variant_id == 'gid://shopify/ProductVariant/111'
+        assert rows[0].shopify_inventory_item_id == 'gid://shopify/InventoryItem/222'
+        assert rows[0].shopify_location_id == 'gid://shopify/Location/333'
+        assert rows[0].shopify_location_name == 'Main Store 310A'
 
     def test_large_delta_warning_flagged(self, reconciliation_db):
         from app.models import InventoryReconciliationRow

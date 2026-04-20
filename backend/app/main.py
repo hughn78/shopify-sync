@@ -349,16 +349,57 @@ else:
 
 def _build_source_key(detected_type: str, row: dict, idx: int) -> str:
     if detected_type == 'SHOPIFY_PRODUCTS':
-        return f"{row.get('Handle', '')}:{row.get('Variant SKU', '')}:{idx}"
+        variant_id = _pick_value(row, 'Variant ID', 'variant_id', 'Variant Id')
+        if variant_id:
+            return f"shopify-product-variant:{variant_id}"
+        sku = _pick_value(row, 'Variant SKU', 'SKU', 'sku')
+        handle = _pick_value(row, 'Handle', 'handle')
+        if handle or sku:
+            return f"shopify-product:{handle or ''}:{sku or ''}"
+        product_id = _pick_value(row, 'Product ID', 'product_id', 'Product Id')
+        if product_id:
+            return f"shopify-product-id:{product_id}"
+        return f"shopify-product-row:{idx}"
     if detected_type == 'SHOPIFY_INVENTORY':
-        return f"{row.get('Handle', '')}:{row.get('SKU', '')}:{row.get('Location', '')}:{idx}"
+        inventory_item_id = _pick_value(row, 'Inventory Item ID', 'inventory_item_id', 'Inventory Item Id')
+        location_id = _pick_value(row, 'Location ID', 'location_id', 'Location Id')
+        if inventory_item_id and location_id:
+            return f"shopify-inventory:{inventory_item_id}:{location_id}"
+        sku = _pick_value(row, 'SKU', 'sku')
+        location = _pick_value(row, 'Location', 'location')
+        if sku or location:
+            return f"shopify-inventory-sku:{sku or ''}:{location or ''}"
+        handle = _pick_value(row, 'Handle', 'handle')
+        if handle:
+            return f"shopify-inventory-handle:{handle}"
+        return f"shopify-inventory-row:{idx}"
     if detected_type == 'FOS':
-        return f"{row.get('APN', '')}:{row.get('PDE', '')}:{idx}"
+        apn = _pick_value(row, 'APN', 'apn')
+        pde = _pick_value(row, 'PDE', 'pde', 'API PDE')
+        barcode = _pick_value(row, 'Barcode', 'barcode')
+        if apn:
+            return f"fos-apn:{apn}"
+        if pde:
+            return f"fos-pde:{pde}"
+        if barcode:
+            return f"fos-barcode:{barcode}"
+        return f"fos-row:{idx}"
     if detected_type == 'PRICEBOOK':
         return f"{row.get('API PDE', row.get('PDE', ''))}:{row.get('Barcode', '')}:{idx}"
     if detected_type == 'MASTERCATALOG':
         return f"{row.get('APN', '')}:{row.get('Name', '')}:{idx}"
     return f"{row.get('product_id', row.get('slug', row.get('name', '')))}:{idx}"
+
+
+def _pick_value(row: dict, *keys: str) -> Optional[str]:
+    for key in keys:
+        value = row.get(key)
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            return text
+    return None
 
 
 def _coerce_int(value: Any) -> Optional[int]:

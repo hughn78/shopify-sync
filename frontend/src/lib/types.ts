@@ -23,6 +23,10 @@ export interface CanonicalProduct {
 export interface SourceProduct {
   id: number;
   title: string;
+  external_variant_id?: string;
+  external_inventory_item_id?: string;
+  external_location_id?: string;
+  source_location_name?: string;
   handle?: string;
   sku?: string;
   barcode?: string;
@@ -91,6 +95,10 @@ export interface ReconciliationRow {
   id: number;
   shopify_handle?: string;
   shopify_title?: string;
+  shopify_variant_id?: string;
+  shopify_inventory_item_id?: string;
+  shopify_location_id?: string;
+  shopify_location_name?: string;
   fos_stock_name?: string;
   shopify_current_on_hand?: number;
   fos_soh?: number;

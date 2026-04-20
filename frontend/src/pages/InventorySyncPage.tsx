@@ -65,7 +65,10 @@ export function InventorySyncPage() {
               <div>
                 <div className="text-xs text-muted-foreground uppercase">Shopify product</div>
                 <div className="text-sm font-medium">{row.shopify_title || 'Unknown Shopify product'}</div>
-                <div className="text-sm text-muted-foreground mt-1">Handle: {row.shopify_handle || 'n/a'}</div>
+                <div className="text-sm text-muted-foreground mt-1">
+                  Handle: {row.shopify_handle || 'n/a'} · Variant ID: {row.shopify_variant_id || 'n/a'} · Inventory Item ID: {row.shopify_inventory_item_id || 'n/a'}
+                </div>
+                <div className="text-sm text-muted-foreground mt-1">Location: {row.shopify_location_name || 'n/a'} ({row.shopify_location_id || 'no id'})</div>
               </div>
               <div className="text-sm"><strong>Status:</strong> {row.sync_status}</div>
             </div>

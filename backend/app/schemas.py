@@ -35,6 +35,10 @@ class SourceProductRead(BaseModel):
 
     id: int
     title: str
+    external_variant_id: Optional[str] = None
+    external_inventory_item_id: Optional[str] = None
+    external_location_id: Optional[str] = None
+    source_location_name: Optional[str] = None
     handle: Optional[str] = None
     sku: Optional[str] = None
     barcode: Optional[str] = None

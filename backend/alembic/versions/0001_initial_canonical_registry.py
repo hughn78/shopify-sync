@@ -67,6 +67,10 @@ def upgrade() -> None:
         sa.Column('source_system_id', sa.Integer(), sa.ForeignKey('source_systems.id'), nullable=False),
         sa.Column('source_record_key', sa.String(length=255), nullable=False),
         sa.Column('external_product_id', sa.String(length=255)),
+        sa.Column('external_variant_id', sa.String(length=255)),
+        sa.Column('external_inventory_item_id', sa.String(length=255)),
+        sa.Column('external_location_id', sa.String(length=255)),
+        sa.Column('source_location_name', sa.String(length=255)),
         sa.Column('handle', sa.String(length=255)),
         sa.Column('title', sa.String(length=512), nullable=False),
         sa.Column('normalized_title', sa.String(length=512)),
@@ -84,7 +88,7 @@ def upgrade() -> None:
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.true()),
         sa.UniqueConstraint('source_system_id', 'source_record_key', name='uq_source_record'),
     )
-    for name in ['source_system_id', 'handle', 'title', 'normalized_title', 'sku', 'barcode', 'apn', 'pde']:
+    for name in ['source_system_id', 'external_variant_id', 'external_inventory_item_id', 'external_location_id', 'handle', 'title', 'normalized_title', 'sku', 'barcode', 'apn', 'pde']:
         op.create_index(f'ix_source_products_{name}', 'source_products', [name])
 
     op.create_table(
@@ -179,6 +183,10 @@ def upgrade() -> None:
         sa.Column('fos_source_product_id', sa.Integer(), sa.ForeignKey('source_products.id')),
         sa.Column('shopify_handle', sa.String(length=255)),
         sa.Column('shopify_title', sa.String(length=512)),
+        sa.Column('shopify_variant_id', sa.String(length=255)),
+        sa.Column('shopify_inventory_item_id', sa.String(length=255)),
+        sa.Column('shopify_location_id', sa.String(length=255)),
+        sa.Column('shopify_location_name', sa.String(length=255)),
         sa.Column('shopify_sku', sa.String(length=128)),
         sa.Column('shopify_barcode', sa.String(length=128)),
         sa.Column('fos_stock_name', sa.String(length=512)),

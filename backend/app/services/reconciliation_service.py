@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.enums import LinkStatus, SyncStatus
-from app.models import InventoryReconciliationRow, InventoryReconciliationRun, InventorySnapshot, SourceProduct, SourceProductLink
+from app.models import InventoryReconciliationRow, InventoryReconciliationRun, InventorySnapshot, SourceProduct, SourceProductLink, SourceSystem
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +47,10 @@ class ReconciliationService:
                 if source_product is None:
                     logger.warning('source_product_id=%s not found for link_id=%s, skipping', link.source_product_id, link.id)
                     continue
-                if source_product.handle:
+                source_code = db.scalar(select(SourceSystem.code).where(SourceSystem.id == source_product.source_system_id))
+                if source_code in {'SHOPIFY_PRODUCTS', 'SHOPIFY_INVENTORY'}:
                     shopify = source_product
-                if source_product.apn or (source_product.raw_payload_json or {}).get('Stock Name'):
+                if source_code == 'FOS':
                     fos = source_product
 
             if not shopify and not fos:
@@ -87,6 +88,10 @@ class ReconciliationService:
                 fos_source_product_id=fos.id if fos else None,
                 shopify_handle=shopify.handle if shopify else None,
                 shopify_title=shopify.title if shopify else None,
+                shopify_variant_id=shopify.external_variant_id if shopify else None,
+                shopify_inventory_item_id=shopify.external_inventory_item_id if shopify else None,
+                shopify_location_id=shopify.external_location_id if shopify else None,
+                shopify_location_name=shopify.source_location_name if shopify else None,
                 shopify_sku=shopify.sku if shopify else None,
                 shopify_barcode=shopify.barcode if shopify else None,
                 fos_stock_name=fos.title if fos else None,

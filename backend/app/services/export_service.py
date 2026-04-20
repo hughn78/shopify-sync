@@ -25,6 +25,10 @@ class ExportService:
             {
                 'Handle': row.shopify_handle,
                 'Title': row.shopify_title,
+                'Variant ID': row.shopify_variant_id,
+                'Inventory Item ID': row.shopify_inventory_item_id,
+                'Location ID': row.shopify_location_id,
+                'Location Name': row.shopify_location_name,
                 'SKU': row.shopify_sku,
                 'Barcode': row.shopify_barcode,
                 'Current Shopify On Hand': row.shopify_current_on_hand,
