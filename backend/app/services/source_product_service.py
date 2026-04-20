@@ -1,11 +1,18 @@
 from __future__ import annotations
 
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import SourceProduct, SourceSystem
+
+logger = logging.getLogger(__name__)
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class SourceProductService:
@@ -17,6 +24,7 @@ class SourceProductService:
         db.add(system)
         db.commit()
         db.refresh(system)
+        logger.info('Created source system code=%s', code)
         return system
 
     def upsert_source_product(self, db: Session, source_code: str, source_record_key: str, data: dict, batch_id: int) -> SourceProduct:
@@ -27,7 +35,7 @@ class SourceProductService:
                 SourceProduct.source_record_key == source_record_key,
             )
         )
-        now = datetime.utcnow()
+        now = _utcnow()
         payload = {
             'handle': data.get('Handle') or data.get('handle') or data.get('slug') or data.get('url'),
             'title': data.get('Title') or data.get('title') or data.get('name') or data.get('Name') or data.get('Product') or data.get('Description') or data.get('Stock Name') or data.get('Full Name') or 'Untitled',
@@ -47,6 +55,7 @@ class SourceProductService:
         if product:
             for key, value in payload.items():
                 setattr(product, key, value)
+            logger.debug('Updated source product id=%s key=%s', product.id, source_record_key)
         else:
             product = SourceProduct(
                 source_system_id=system.id,
@@ -56,6 +65,7 @@ class SourceProductService:
                 **payload,
             )
             db.add(product)
-        db.commit()
+            logger.debug('Created source product key=%s system=%s', source_record_key, source_code)
+        db.flush()
         db.refresh(product)
         return product

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import logging
 from io import BytesIO, StringIO
 from pathlib import Path
 from typing import Iterable, List, Tuple
@@ -11,6 +12,11 @@ from sqlalchemy.orm import Session
 
 from app.models import ImportBatch
 
+logger = logging.getLogger(__name__)
+
+MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
+
+ALLOWED_SUFFIXES = {'.csv', '.txt', '.xlsx', '.xlsm', '.xls'}
 
 FILE_COLUMN_HINTS = {
     'SHOPIFY_PRODUCTS': {'Handle', 'Title'},
@@ -23,6 +29,13 @@ FILE_COLUMN_HINTS = {
 
 
 class ImportService:
+    def validate_upload(self, filename: str, content: bytes) -> None:
+        if len(content) > MAX_UPLOAD_BYTES:
+            raise ValueError(f'File {filename!r} exceeds the {MAX_UPLOAD_BYTES // (1024*1024)} MB limit ({len(content) // (1024*1024)} MB received)')
+        suffix = Path(filename).suffix.lower()
+        if suffix not in ALLOWED_SUFFIXES:
+            raise ValueError(f'Unsupported file type {suffix!r}. Allowed: {sorted(ALLOWED_SUFFIXES)}')
+
     def detect_type(self, columns: Iterable[str], filename: str) -> str:
         normalized_columns = {str(column).strip() for column in columns if str(column).strip()}
         lower_columns = {column.lower() for column in normalized_columns}
@@ -65,22 +78,31 @@ class ImportService:
         for import_type, required in FILE_COLUMN_HINTS.items():
             if {value.lower() for value in required}.issubset(lower_columns):
                 return import_type
-        raise ValueError(f'Could not detect import type for {filename}. Columns seen: {sorted(normalized_columns)[:12]}')
+
+        raise ValueError(f'Could not detect import type for {filename!r}. Columns seen: {sorted(normalized_columns)[:12]}')
 
     def parse_file(self, filename: str, content: bytes) -> Tuple[str, List[dict]]:
         suffix = Path(filename).suffix.lower()
         if suffix in {'.csv', '.txt'}:
-            text = content.decode('utf-8-sig', errors='ignore')
+            try:
+                text = content.decode('utf-8-sig')
+            except UnicodeDecodeError:
+                logger.warning('UTF-8 decode failed for %r, retrying with latin-1', filename)
+                text = content.decode('latin-1')
             reader = csv.DictReader(StringIO(text))
             rows = [dict(row) for row in reader]
             detected = self.detect_type(reader.fieldnames or [], filename)
+            logger.info('Parsed CSV %r: type=%s rows=%d', filename, detected, len(rows))
             return detected, rows
         if suffix in {'.xlsx', '.xlsm', '.xls'}:
             df = pd.read_excel(BytesIO(content))
-            rows = df.fillna('').to_dict(orient='records')
+            rows = df.where(df.notna(), other=None).to_dict(orient='records')
+            # Convert None back to empty string for string columns to keep downstream code simple
+            rows = [{k: ('' if v is None else v) for k, v in row.items()} for row in rows]
             detected = self.detect_type(df.columns.tolist(), filename)
+            logger.info('Parsed Excel %r: type=%s rows=%d', filename, detected, len(rows))
             return detected, rows
-        raise ValueError(f'Unsupported file type: {suffix}')
+        raise ValueError(f'Unsupported file type: {suffix!r}')
 
     def file_hash(self, content: bytes) -> str:
         return hashlib.sha256(content).hexdigest()
@@ -96,4 +118,5 @@ class ImportService:
         db.add(batch)
         db.commit()
         db.refresh(batch)
+        logger.info('Created import batch id=%s type=%s filename=%r rows=%d', batch.id, import_type, filename, row_count)
         return batch

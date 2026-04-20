@@ -3,10 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ImportBatchRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     import_type: str
     filename: str
@@ -14,11 +16,10 @@ class ImportBatchRead(BaseModel):
     created_at: datetime
     status: str
 
-    class Config:
-        from_attributes = True
-
 
 class CanonicalProductRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     canonical_name: str
     normalized_name: Optional[str] = None
@@ -28,11 +29,10 @@ class CanonicalProductRead(BaseModel):
     review_status: str
     confidence_summary: Optional[str] = None
 
-    class Config:
-        from_attributes = True
-
 
 class SourceProductRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     title: str
     handle: Optional[str] = None
@@ -42,11 +42,10 @@ class SourceProductRead(BaseModel):
     pde: Optional[str] = None
     status: Optional[str] = None
 
-    class Config:
-        from_attributes = True
-
 
 class LinkReviewRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     link_status: str
     link_method: str
@@ -59,9 +58,6 @@ class LinkReviewRead(BaseModel):
     review_notes: Optional[str] = None
     source_product: SourceProductRead
     canonical_product: CanonicalProductRead
-
-    class Config:
-        from_attributes = True
 
 
 class DashboardSummary(BaseModel):
@@ -101,3 +97,10 @@ class ImportPreviewResponse(BaseModel):
     preview_rows: List[ImportPreviewRow]
     missing_columns: List[str]
     extra_columns: List[str]
+
+
+class PaginatedResponse(BaseModel):
+    items: List[Any]
+    total: int
+    limit: int
+    offset: int

@@ -1,9 +1,13 @@
 from __future__ import annotations
+
+import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.models import InventorySnapshot, SourceSystem
+from app.models import InventorySnapshot
+
+logger = logging.getLogger(__name__)
 
 
 class InventoryService:
@@ -32,6 +36,7 @@ class InventoryService:
             import_batch_id=import_batch_id,
         )
         db.add(snapshot)
-        db.commit()
+        db.flush()
         db.refresh(snapshot)
+        logger.debug('Created inventory snapshot id=%s source_product_id=%s on_hand=%s', snapshot.id, source_product_id, on_hand)
         return snapshot

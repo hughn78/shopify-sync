@@ -80,6 +80,13 @@ export interface ImportPreviewResponse {
   extra_columns: string[];
 }
 
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface ReconciliationRow {
   id: number;
   shopify_handle?: string;

@@ -1,11 +1,19 @@
 from __future__ import annotations
-from typing import List, Optional
 
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
+from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
+from app.enums import LinkStatus, ProductReviewStatus, ReviewAction
 from app.models import CanonicalProduct, ManualReviewAction, SourceProductLink
+
+logger = logging.getLogger(__name__)
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class ReviewService:
@@ -24,37 +32,39 @@ class ReviewService:
             'canonical_product_id': link.canonical_product_id,
             'locked': link.locked,
         }
-        if action == 'approve':
-            link.link_status = 'APPROVED'
+        if action == ReviewAction.APPROVE:
+            link.link_status = LinkStatus.APPROVED
             link.excluded = False
-            link.approved_at = datetime.utcnow()
-        elif action == 'reject':
-            link.link_status = 'REJECTED'
+            link.approved_at = _utcnow()
+        elif action == ReviewAction.REJECT:
+            link.link_status = LinkStatus.REJECTED
             link.excluded = False
-        elif action == 'exclude':
-            link.link_status = 'EXCLUDED'
+        elif action == ReviewAction.EXCLUDE:
+            link.link_status = LinkStatus.EXCLUDED
             link.excluded = True
-        elif action == 'reassign' and canonical_product_id:
+        elif action == ReviewAction.REASSIGN and canonical_product_id:
             link.canonical_product_id = canonical_product_id
-            link.link_status = 'APPROVED'
+            link.link_status = LinkStatus.APPROVED
             link.excluded = False
-        elif action == 'create_canonical':
+        elif action == ReviewAction.CREATE_CANONICAL:
             canonical = CanonicalProduct(
                 canonical_name=f'Manual Canonical {link.source_product_id}',
                 normalized_name=f'manual canonical {link.source_product_id}',
-                review_status='APPROVED',
+                review_status=ProductReviewStatus.APPROVED,
                 created_from_source='MANUAL',
                 confidence_summary='Created during review',
             )
             db.add(canonical)
             db.flush()
             link.canonical_product_id = canonical.id
-            link.link_status = 'APPROVED'
+            link.link_status = LinkStatus.APPROVED
             link.excluded = False
+
         if locked is not None:
             link.locked = locked
         if note:
             link.review_notes = note
+
         db.add(
             ManualReviewAction(
                 entity_type='source_product_link',
@@ -69,6 +79,7 @@ class ReviewService:
                 user_note=note,
             )
         )
+        logger.info('Review action=%s link_id=%s', action, link.id)
         if commit:
             db.commit()
             db.refresh(link)
@@ -99,4 +110,5 @@ class ReviewService:
         db.commit()
         for link in updated_links:
             db.refresh(link)
+        logger.info('Bulk review action=%s applied to %d links', action, len(updated_links))
         return updated_links

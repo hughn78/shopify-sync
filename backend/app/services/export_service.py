@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -9,6 +10,12 @@ from sqlalchemy.orm import Session
 
 from app.config import EXPORT_DIR
 from app.models import ExportRun, InventoryReconciliationRow, SourceProductLink
+
+logger = logging.getLogger(__name__)
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class ExportService:
@@ -29,10 +36,17 @@ class ExportService:
             }
             for row in rows
         ]
-        path = EXPORT_DIR / f'inventory_sync_{run_id}_{datetime.utcnow().strftime("%Y%m%d%H%M%S")}.csv'
+        timestamp = _utcnow().strftime('%Y%m%d%H%M%S')
+        path = EXPORT_DIR / f'inventory_sync_{run_id}_{timestamp}.csv'
         pd.DataFrame(payload).to_csv(path, index=False)
-        db.add(ExportRun(export_type='SHOPIFY_INVENTORY_SYNC', file_path=str(path), row_count=len(payload), manifest_json={'run_id': run_id}))
+        db.add(ExportRun(
+            export_type='SHOPIFY_INVENTORY_SYNC',
+            file_path=str(path),
+            row_count=len(payload),
+            manifest_json={'run_id': run_id},
+        ))
         db.commit()
+        logger.info('Exported %d rows for run_id=%s to %s', len(payload), run_id, path)
         return path
 
     def export_link_report(self, db: Session, status: str, filename_prefix: str) -> Path:
@@ -49,8 +63,15 @@ class ExportService:
             }
             for link in links
         ]
-        path = EXPORT_DIR / f'{filename_prefix}_{datetime.utcnow().strftime("%Y%m%d%H%M%S")}.csv'
+        timestamp = _utcnow().strftime('%Y%m%d%H%M%S')
+        path = EXPORT_DIR / f'{filename_prefix}_{timestamp}.csv'
         pd.DataFrame(payload).to_csv(path, index=False)
-        db.add(ExportRun(export_type=filename_prefix.upper(), file_path=str(path), row_count=len(payload), manifest_json={'status': status}))
+        db.add(ExportRun(
+            export_type=filename_prefix.upper(),
+            file_path=str(path),
+            row_count=len(payload),
+            manifest_json={'status': status},
+        ))
         db.commit()
+        logger.info('Exported link report %s with %d rows to %s', filename_prefix, len(payload), path)
         return path

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import logging
+
 from sqlalchemy.orm import Session
 
+from app.enums import ProductReviewStatus
 from app.models import CanonicalProduct
 from app.utils.normalizers import normalize_name_for_match
+
+logger = logging.getLogger(__name__)
 
 
 class CanonicalProductService:
@@ -14,11 +19,12 @@ class CanonicalProductService:
             primary_barcode=source_product.barcode,
             primary_apn=source_product.apn,
             primary_pde=source_product.pde,
-            review_status='NEEDS_REVIEW',
+            review_status=ProductReviewStatus.NEEDS_REVIEW,
             created_from_source=source_code,
             confidence_summary='Created from source import',
         )
         db.add(product)
-        db.commit()
+        db.flush()
         db.refresh(product)
+        logger.debug('Created canonical product id=%s name=%r source=%s', product.id, product.canonical_name, source_code)
         return product

@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import logging
+import logging.config
 from typing import Any, Optional
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import CandidateLink, CanonicalProduct, SourceProduct, SourceProductLink
+from app.models import CandidateLink, CanonicalProduct, SourceProduct, SourceProductLink, SourceSystem
 from app.routes.dashboard import get_dashboard_summary
 from app.schemas import BulkReviewActionRequest, ImportPreviewResponse, ImportPreviewRow, ReviewActionRequest
 from app.services.audit_service import AuditService
@@ -21,11 +23,33 @@ from app.services.reconciliation_service import ReconciliationService
 from app.services.review_service import ReviewService
 from app.services.source_product_service import SourceProductService
 
+logging.config.dictConfig({
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'default': {'format': '%(asctime)s %(levelname)-8s %(name)s %(message)s'},
+    },
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler', 'formatter': 'default'},
+    },
+    'root': {'level': 'INFO', 'handlers': ['console']},
+    'loggers': {
+        'app': {'level': 'DEBUG', 'propagate': True},
+    },
+})
+
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title='Pharmacy Stock Sync')
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
-    allow_credentials=True,
+    allow_origins=[
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://localhost:5174',
+        'http://127.0.0.1:5174',
+    ],
+    allow_credentials=False,
     allow_methods=['*'],
     allow_headers=['*'],
 )
@@ -54,7 +78,11 @@ def dashboard(db: Session = Depends(get_db)):
 @app.post('/api/imports/preview', response_model=ImportPreviewResponse)
 async def preview_import(file: UploadFile = File(...)):
     content = await file.read()
-    detected_type, rows = import_service.parse_file(file.filename, content)
+    try:
+        import_service.validate_upload(file.filename or '', content)
+        detected_type, rows = import_service.parse_file(file.filename or '', content)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     columns = list(rows[0].keys()) if rows else []
     expected = FILE_COLUMN_HINTS.get(detected_type, set())
     return ImportPreviewResponse(
@@ -71,59 +99,73 @@ async def import_file(files: list[UploadFile] = File(...), db: Session = Depends
     results = []
     for file in files:
         content = await file.read()
-        detected_type, rows = import_service.parse_file(file.filename, content)
-        batch = import_service.create_batch(db, detected_type, file.filename, content, len(rows))
+        filename = file.filename or 'unknown'
+        try:
+            import_service.validate_upload(filename, content)
+            detected_type, rows = import_service.parse_file(filename, content)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
 
+        batch = import_service.create_batch(db, detected_type, filename, content, len(rows))
         system = source_product_service.get_source_system(db, detected_type)
 
+        row_errors = []
         for idx, row in enumerate(rows, start=1):
-            normalized = normalization_service.normalize_source_row(row, detected_type)
-            if detected_type == 'SHOPIFY_PRODUCTS':
-                key = f"{row.get('Handle', '')}:{row.get('Variant SKU', '')}:{idx}"
-            elif detected_type == 'SHOPIFY_INVENTORY':
-                key = f"{row.get('Handle', '')}:{row.get('SKU', '')}:{row.get('Location', '')}:{idx}"
-            elif detected_type == 'FOS':
-                key = f"{row.get('APN', '')}:{row.get('PDE', '')}:{idx}"
-            elif detected_type == 'PRICEBOOK':
-                key = f"{row.get('API PDE', row.get('PDE', ''))}:{row.get('Barcode', '')}:{idx}"
-            elif detected_type == 'MASTERCATALOG':
-                key = f"{row.get('APN', '')}:{row.get('Name', '')}:{idx}"
-            else:
-                key = f"{row.get('product_id', row.get('slug', row.get('name', '')))}:{idx}"
-            source_product = source_product_service.upsert_source_product(db, detected_type, key, {**row, **normalized}, batch.id)
+            sp = db.begin_nested()
+            try:
+                normalized = normalization_service.normalize_source_row(row, detected_type)
+                key = _build_source_key(detected_type, row, idx)
+                source_product = source_product_service.upsert_source_product(db, detected_type, key, {**row, **normalized}, batch.id)
 
-            if detected_type == 'SHOPIFY_INVENTORY':
-                inventory_service.create_snapshot(
-                    db,
-                    source_product_id=source_product.id,
-                    source_system_id=system.id,
-                    import_batch_id=batch.id,
-                    source_location=normalized.get('location'),
-                    on_hand=_coerce_int(row.get('On hand (current)') or row.get('On Hand (current)') or row.get('On hand') or row.get('on_hand')),
-                    available=_coerce_int(row.get('Available')),
-                    committed=_coerce_int(row.get('Committed')),
-                    unavailable=_coerce_int(row.get('Unavailable')),
-                )
-            elif detected_type == 'FOS':
-                inventory_service.create_snapshot(
-                    db,
-                    source_product_id=source_product.id,
-                    source_system_id=system.id,
-                    import_batch_id=batch.id,
-                    source_location='fos',
-                    on_hand=_coerce_int(row.get('SOH')),
-                )
+                if detected_type == 'SHOPIFY_INVENTORY':
+                    inventory_service.create_snapshot(
+                        db,
+                        source_product_id=source_product.id,
+                        source_system_id=system.id,
+                        import_batch_id=batch.id,
+                        source_location=normalized.get('location'),
+                        on_hand=_coerce_int(row.get('On hand (current)') or row.get('On Hand (current)') or row.get('On hand') or row.get('on_hand')),
+                        available=_coerce_int(row.get('Available')),
+                        committed=_coerce_int(row.get('Committed')),
+                        unavailable=_coerce_int(row.get('Unavailable')),
+                    )
+                elif detected_type == 'FOS':
+                    inventory_service.create_snapshot(
+                        db,
+                        source_product_id=source_product.id,
+                        source_system_id=system.id,
+                        import_batch_id=batch.id,
+                        source_location='fos',
+                        on_hand=_coerce_int(row.get('SOH')),
+                    )
 
-            matching_service.resolve_source_product(db, source_product)
+                matching_service.resolve_source_product(db, source_product)
+                sp.commit()
+            except Exception as exc:
+                sp.rollback()
+                logger.error('Row %d of %r failed: %s', idx, filename, exc)
+                row_errors.append({'row': idx, 'error': str(exc)})
 
-        results.append({'batch_id': batch.id, 'import_type': detected_type, 'rows': len(rows), 'filename': file.filename})
+        db.commit()
+        result = {'batch_id': batch.id, 'import_type': detected_type, 'rows': len(rows), 'filename': filename}
+        if row_errors:
+            result['row_errors'] = row_errors
+        results.append(result)
 
     return {'imports': results, 'count': len(results)}
 
 
 @app.get('/api/canonical-products')
-def list_canonical_products(db: Session = Depends(get_db)):
-    return db.scalars(select(CanonicalProduct).order_by(CanonicalProduct.id.desc())).all()
+def list_canonical_products(
+    limit: int = Query(default=200, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    total = db.scalar(select(func.count()).select_from(CanonicalProduct))
+    items = db.scalars(
+        select(CanonicalProduct).order_by(CanonicalProduct.id.desc()).limit(limit).offset(offset)
+    ).all()
+    return {'items': items, 'total': total, 'limit': limit, 'offset': offset}
 
 
 @app.get('/api/review-options')
@@ -143,29 +185,46 @@ def review_options(db: Session = Depends(get_db)):
 
 
 @app.get('/api/source-products')
-def list_source_products(source: Optional[str] = None, db: Session = Depends(get_db)):
+def list_source_products(
+    source: Optional[str] = None,
+    limit: int = Query(default=200, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
     stmt = select(SourceProduct, SourceSystem.code.label('source_code')).join(SourceSystem, SourceSystem.id == SourceProduct.source_system_id)
     if source:
         stmt = stmt.where(SourceSystem.code == source)
-    rows = db.execute(stmt.order_by(SourceProduct.id.desc())).all()
-    return [
-        {
-            **source_product.__dict__,
-            'source_code': source_code,
-        }
-        for source_product, source_code in rows
-    ]
+    total = db.scalar(select(func.count()).select_from(stmt.subquery()))
+    rows = db.execute(stmt.order_by(SourceProduct.id.desc()).limit(limit).offset(offset)).all()
+    return {
+        'items': [
+            {**source_product.__dict__, 'source_code': source_code}
+            for source_product, source_code in rows
+        ],
+        'total': total,
+        'limit': limit,
+        'offset': offset,
+    }
 
 
 @app.get('/api/link-review')
-def link_review(db: Session = Depends(get_db)):
-    links = db.scalars(select(SourceProductLink).order_by(SourceProductLink.id.desc())).all()
+def link_review(
+    limit: int = Query(default=200, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    total = db.scalar(select(func.count()).select_from(SourceProductLink))
+    links = db.scalars(
+        select(SourceProductLink).order_by(SourceProductLink.id.desc()).limit(limit).offset(offset)
+    ).all()
     payload = []
     for link in links:
         source_product = db.get(SourceProduct, link.source_product_id)
         canonical_product = db.get(CanonicalProduct, link.canonical_product_id)
         candidates = db.scalars(
-            select(CandidateLink).where(CandidateLink.source_product_id == link.source_product_id).order_by(CandidateLink.candidate_rank.asc())
+            select(CandidateLink)
+            .where(CandidateLink.source_product_id == link.source_product_id)
+            .order_by(CandidateLink.candidate_rank.asc())
         ).all()
         payload.append({
             'id': link.id,
@@ -195,7 +254,7 @@ def link_review(db: Session = Depends(get_db)):
                 for candidate in candidates
             ],
         })
-    return payload
+    return {'items': payload, 'total': total, 'limit': limit, 'offset': offset}
 
 
 @app.post('/api/link-review/bulk')
@@ -251,12 +310,19 @@ def audit_summary(db: Session = Depends(get_db)):
 
 
 @app.get('/api/import-batches')
-def list_import_batches(import_type: Optional[str] = None, db: Session = Depends(get_db)):
+def list_import_batches(
+    import_type: Optional[str] = None,
+    limit: int = Query(default=200, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
     from app.models import ImportBatch
     stmt = select(ImportBatch)
     if import_type:
         stmt = stmt.where(ImportBatch.import_type == import_type)
-    return db.scalars(stmt.order_by(ImportBatch.id.desc())).all()
+    total = db.scalar(select(func.count()).select_from(stmt.subquery()))
+    items = db.scalars(stmt.order_by(ImportBatch.id.desc()).limit(limit).offset(offset)).all()
+    return {'items': items, 'total': total, 'limit': limit, 'offset': offset}
 
 
 @app.get('/api/settings')
@@ -265,10 +331,25 @@ def settings():
     return app_settings.model_dump()
 
 
+def _build_source_key(detected_type: str, row: dict, idx: int) -> str:
+    if detected_type == 'SHOPIFY_PRODUCTS':
+        return f"{row.get('Handle', '')}:{row.get('Variant SKU', '')}:{idx}"
+    if detected_type == 'SHOPIFY_INVENTORY':
+        return f"{row.get('Handle', '')}:{row.get('SKU', '')}:{row.get('Location', '')}:{idx}"
+    if detected_type == 'FOS':
+        return f"{row.get('APN', '')}:{row.get('PDE', '')}:{idx}"
+    if detected_type == 'PRICEBOOK':
+        return f"{row.get('API PDE', row.get('PDE', ''))}:{row.get('Barcode', '')}:{idx}"
+    if detected_type == 'MASTERCATALOG':
+        return f"{row.get('APN', '')}:{row.get('Name', '')}:{idx}"
+    return f"{row.get('product_id', row.get('slug', row.get('name', '')))}:{idx}"
+
+
 def _coerce_int(value: Any) -> Optional[int]:
     if value in (None, ''):
         return None
     try:
         return int(float(value))
-    except Exception:
+    except (ValueError, TypeError) as exc:
+        logger.debug('Could not coerce %r to int: %s', value, exc)
         return None

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
@@ -9,9 +9,13 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 
 
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 class TimestampMixin:
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 
 class CanonicalProduct(Base, TimestampMixin):
@@ -50,7 +54,7 @@ class ImportBatch(Base):
     filename: Mapped[str] = mapped_column(String(512))
     file_hash: Mapped[Optional[str]] = mapped_column(String(128))
     row_count: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     notes: Mapped[Optional[str]] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(64), default='IMPORTED')
 
@@ -75,8 +79,8 @@ class SourceProduct(Base):
     status: Mapped[Optional[str]] = mapped_column(String(64))
     raw_payload_json: Mapped[Optional[dict]] = mapped_column(JSON)
     last_import_batch_id: Mapped[Optional[int]] = mapped_column(ForeignKey('import_batches.id'))
-    first_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
@@ -92,8 +96,8 @@ class ProductIdentifier(Base):
     priority: Mapped[int] = mapped_column(Integer, default=100)
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    first_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 
 class SourceProductLink(Base, TimestampMixin):
@@ -130,7 +134,7 @@ class CandidateLink(Base):
     ai_score: Mapped[Optional[float]] = mapped_column(Float)
     ai_reason: Mapped[Optional[str]] = mapped_column(Text)
     proposed_action: Mapped[Optional[str]] = mapped_column(String(64))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 
 class InventorySnapshot(Base):
@@ -145,7 +149,7 @@ class InventorySnapshot(Base):
     available: Mapped[Optional[int]] = mapped_column(Integer)
     committed: Mapped[Optional[int]] = mapped_column(Integer)
     unavailable: Mapped[Optional[int]] = mapped_column(Integer)
-    captured_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    captured_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     import_batch_id: Mapped[Optional[int]] = mapped_column(ForeignKey('import_batches.id'))
 
 
@@ -153,7 +157,7 @@ class InventoryReconciliationRun(Base):
     __tablename__ = 'inventory_reconciliation_runs'
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     notes: Mapped[Optional[str]] = mapped_column(Text)
     settings_snapshot_json: Mapped[Optional[dict]] = mapped_column(JSON)
 
@@ -193,7 +197,7 @@ class ManualReviewAction(Base):
     old_value_json: Mapped[Optional[dict]] = mapped_column(JSON)
     new_value_json: Mapped[Optional[dict]] = mapped_column(JSON)
     user_note: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 
 class ExportRun(Base):
@@ -203,7 +207,7 @@ class ExportRun(Base):
     export_type: Mapped[str] = mapped_column(String(64), index=True)
     file_path: Mapped[str] = mapped_column(String(512))
     row_count: Mapped[int] = mapped_column(Integer)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     manifest_json: Mapped[Optional[dict]] = mapped_column(JSON)
     notes: Mapped[Optional[str]] = mapped_column(Text)
 
