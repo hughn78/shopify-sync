@@ -14,8 +14,14 @@ async function parseErrorResponse(response: Response): Promise<ApiError> {
   if (contentType.includes('application/json')) {
     try {
       const body = await response.json();
-      const message = body?.detail ?? body?.message ?? JSON.stringify(body);
-      return new ApiError(response.status, String(message), body);
+      // FastAPI validation errors return detail as an array of {loc, msg, type}
+      let message: string;
+      if (Array.isArray(body?.detail)) {
+        message = body.detail.map((e: { msg?: string }) => e.msg ?? JSON.stringify(e)).join('; ');
+      } else {
+        message = String(body?.detail ?? body?.message ?? JSON.stringify(body));
+      }
+      return new ApiError(response.status, message, body);
     } catch {
       // fall through to text
     }
@@ -39,21 +45,22 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json();
 }
 
+// Single file upload — field name 'file' (matches FastAPI's preview endpoint)
+export async function uploadFile<T>(path: string, file: File): Promise<T> {
+  const form = new FormData();
+  form.append('file', file);
+  const response = await fetch(`/api${path}`, { method: 'POST', body: form });
+  if (!response.ok) throw await parseErrorResponse(response);
+  return response.json();
+}
+
+// Multi-file upload — field name 'files' (matches FastAPI's import endpoint)
 export async function uploadFiles<T>(path: string, files: File[]): Promise<T> {
   const form = new FormData();
   for (const file of files) {
     form.append('files', file);
   }
-  const response = await fetch(`/api${path}`, {
-    method: 'POST',
-    body: form,
-  });
-  if (!response.ok) {
-    throw await parseErrorResponse(response);
-  }
+  const response = await fetch(`/api${path}`, { method: 'POST', body: form });
+  if (!response.ok) throw await parseErrorResponse(response);
   return response.json();
-}
-
-export async function uploadFile<T>(path: string, file: File): Promise<T> {
-  return uploadFiles<T>(path, [file]);
 }
