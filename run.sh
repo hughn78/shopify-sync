@@ -26,6 +26,14 @@ if $needs_build; then
   echo "Frontend built."
 fi
 
+# Free port 8000 if something is already holding it
+existing=$(lsof -ti :8000 2>/dev/null || true)
+if [ -n "$existing" ]; then
+  echo "Freeing port 8000 (pid $existing)..."
+  kill -9 $existing 2>/dev/null || true
+  sleep 0.5
+fi
+
 echo ""
 echo "  App: http://127.0.0.1:8000"
 echo "  API: http://127.0.0.1:8000/docs"
