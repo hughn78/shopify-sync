@@ -7,7 +7,8 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.enums import LinkStatus, ProductReviewStatus, ReviewAction
-from app.models import CanonicalProduct, ManualReviewAction, SourceProductLink
+from app.models import CanonicalProduct, ManualReviewAction, SourceProduct, SourceProductLink
+from app.services.identifier_service import IdentifierService
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,9 @@ def _utcnow() -> datetime:
 
 
 class ReviewService:
+    def __init__(self):
+        self.identifier_service = IdentifierService()
+
     def apply_action(
         self,
         db: Session,
@@ -59,6 +63,17 @@ class ReviewService:
             link.canonical_product_id = canonical.id
             link.link_status = LinkStatus.APPROVED
             link.excluded = False
+
+        if link.link_status in {LinkStatus.APPROVED, LinkStatus.AUTO_ACCEPTED}:
+            source_product = db.get(SourceProduct, link.source_product_id)
+            if source_product is not None:
+                self.identifier_service.attach_identifiers_from_source_product(
+                    db,
+                    canonical_product_id=link.canonical_product_id,
+                    source_product=source_product,
+                    source=f'REVIEW:{action}',
+                    promote_primary=True,
+                )
 
         if locked is not None:
             link.locked = locked

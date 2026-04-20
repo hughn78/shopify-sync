@@ -325,6 +325,12 @@ def source_identity_backfill_apply(db: Session = Depends(get_db)):
     return source_identity_service.apply_backfill(db)
 
 
+@app.post('/api/identifiers/backfill')
+def identifiers_backfill(db: Session = Depends(get_db)):
+    from app.services.identifier_service import IdentifierService
+    return IdentifierService().backfill_identifiers_from_links(db)
+
+
 @app.get('/api/import-batches')
 def list_import_batches(
     import_type: Optional[str] = None,
