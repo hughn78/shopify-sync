@@ -4,8 +4,12 @@ import logging
 import logging.config
 from typing import Any, Optional
 
+from pathlib import Path
+
 from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -329,6 +333,18 @@ def list_import_batches(
 def settings():
     from app.config import settings as app_settings
     return app_settings.model_dump()
+
+
+_STATIC_DIR = Path(__file__).parent / 'static'
+
+if _STATIC_DIR.exists():
+    app.mount('/assets', StaticFiles(directory=_STATIC_DIR / 'assets'), name='assets')
+
+    @app.get('/{full_path:path}', include_in_schema=False)
+    def spa_fallback(full_path: str):
+        return FileResponse(_STATIC_DIR / 'index.html')
+else:
+    logger.warning('No built frontend found at %s — run `cd frontend && npm run build` first', _STATIC_DIR)
 
 
 def _build_source_key(detected_type: str, row: dict, idx: int) -> str:
