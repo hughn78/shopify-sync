@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { SimpleTable } from '@/components/Table';
 import { api } from '@/lib/api';
-import type { SourceProduct } from '@/lib/types';
+import type { PaginatedResponse, SourceProduct } from '@/lib/types';
 
 const SOURCE_FILTERS = ['ALL', 'SHOPIFY_PRODUCTS', 'SHOPIFY_INVENTORY', 'FOS', 'PRICEBOOK', 'MASTERCATALOG', 'SCRAPED_CATALOG'] as const;
 
@@ -13,7 +13,7 @@ export function SourceProductsPage() {
 
   useEffect(() => {
     const suffix = filter === 'ALL' ? '' : `?source=${encodeURIComponent(filter)}`;
-    api<SourceProduct[]>(`/source-products${suffix}`).then(setItems).catch(console.error);
+    api<PaginatedResponse<SourceProduct>>(`/source-products${suffix}`).then(r => setItems(r.items)).catch(console.error);
   }, [filter]);
 
   const counts = useMemo(() => {

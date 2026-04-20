@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/PageHeader';
 import { api } from '@/lib/api';
-import type { CanonicalProduct, CandidateSummary, LinkReviewItem } from '@/lib/types';
+import type { CanonicalProduct, CandidateSummary, LinkReviewItem, PaginatedResponse } from '@/lib/types';
 
 const FILTERS = ['ALL', 'NEEDS_REVIEW', 'APPROVED', 'AUTO_ACCEPTED', 'REJECTED', 'EXCLUDED', 'CONFLICT'] as const;
 
@@ -14,7 +14,7 @@ export function LinkReviewPage() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   function load() {
-    api<LinkReviewItem[]>('/link-review').then(setItems).catch(console.error);
+    api<PaginatedResponse<LinkReviewItem>>('/link-review').then(r => setItems(r.items)).catch(console.error);
   }
 
   useEffect(() => {

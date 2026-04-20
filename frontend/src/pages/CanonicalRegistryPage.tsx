@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { SimpleTable } from '@/components/Table';
 import { api } from '@/lib/api';
-import type { CanonicalProduct } from '@/lib/types';
+import type { CanonicalProduct, PaginatedResponse } from '@/lib/types';
 
 export function CanonicalRegistryPage() {
   const [items, setItems] = useState<CanonicalProduct[]>([]);
 
   useEffect(() => {
-    api<CanonicalProduct[]>('/canonical-products').then(setItems).catch(console.error);
+    api<PaginatedResponse<CanonicalProduct>>('/canonical-products').then(r => setItems(r.items)).catch(console.error);
   }, []);
 
   return (

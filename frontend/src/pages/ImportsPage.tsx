@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { FileDropZone } from '@/components/FileDropZone';
 import { SimpleTable } from '@/components/Table';
 import { api, uploadFile, uploadFiles } from '@/lib/api';
-import type { ImportBatch, ImportPreviewResponse } from '@/lib/types';
+import type { ImportBatch, ImportPreviewResponse, PaginatedResponse } from '@/lib/types';
 
 interface ImportResult {
   batch_id: number;
@@ -25,7 +25,7 @@ export function ImportsPage() {
 
   function loadBatches() {
     const suffix = filter === 'ALL' ? '' : `?import_type=${encodeURIComponent(filter)}`;
-    api<ImportBatch[]>(`/import-batches${suffix}`).then(setImportBatches).catch(console.error);
+    api<PaginatedResponse<ImportBatch>>(`/import-batches${suffix}`).then(r => setImportBatches(r.items)).catch(console.error);
   }
 
   useEffect(() => {
