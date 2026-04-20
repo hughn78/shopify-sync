@@ -22,6 +22,8 @@ export function DashboardPage() {
         <KpiCard icon={GitMerge} label="Needs Review" value={stats?.unresolved_links ?? 0} />
         <KpiCard icon={AlertTriangle} label="Conflicts" value={stats?.conflicts ?? 0} />
         <KpiCard icon={CheckCircle2} label="Ready to Sync" value={stats?.reconciliation_ready ?? 0} />
+        <KpiCard icon={AlertTriangle} label="Legacy Duplicate Groups" value={stats?.legacy_duplicate_groups ?? 0} />
+        <KpiCard icon={AlertTriangle} label="Legacy Duplicate Records" value={stats?.legacy_duplicate_records ?? 0} />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">

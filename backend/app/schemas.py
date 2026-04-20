@@ -73,6 +73,8 @@ class DashboardSummary(BaseModel):
     reconciliation_ready: int
     import_batches: int
     export_runs: int
+    legacy_duplicate_groups: int = 0
+    legacy_duplicate_records: int = 0
 
 
 class ReviewActionRequest(BaseModel):

@@ -7,6 +7,8 @@ export interface DashboardSummary {
   reconciliation_ready: number;
   import_batches: number;
   export_runs: number;
+  legacy_duplicate_groups: number;
+  legacy_duplicate_records: number;
 }
 
 export interface CanonicalProduct {

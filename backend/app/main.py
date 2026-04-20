@@ -26,6 +26,7 @@ from app.services.normalization_service import NormalizationService
 from app.services.reconciliation_service import ReconciliationService
 from app.services.review_service import ReviewService
 from app.services.source_product_service import SourceProductService
+from app.services.source_identity_service import SourceIdentityService
 
 logging.config.dictConfig({
     'version': 1,
@@ -61,6 +62,7 @@ app.add_middleware(
 import_service = ImportService()
 normalization_service = NormalizationService()
 source_product_service = SourceProductService()
+source_identity_service = SourceIdentityService()
 matching_service = MatchingService()
 inventory_service = InventoryService()
 reconciliation_service = ReconciliationService()
@@ -311,6 +313,16 @@ def export_inventory(run_id: int, db: Session = Depends(get_db)):
 @app.get('/api/audit-summary')
 def audit_summary(db: Session = Depends(get_db)):
     return audit_service.summary(db)
+
+
+@app.get('/api/source-identity/backfill-preview')
+def source_identity_backfill_preview(db: Session = Depends(get_db)):
+    return source_identity_service.preview_backfill(db)
+
+
+@app.post('/api/source-identity/backfill-apply')
+def source_identity_backfill_apply(db: Session = Depends(get_db)):
+    return source_identity_service.apply_backfill(db)
 
 
 @app.get('/api/import-batches')
