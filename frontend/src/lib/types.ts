@@ -109,3 +109,21 @@ export interface ReconciliationRow {
   sync_status: string;
   warning_flags_json?: { warnings?: string[] };
 }
+
+export interface ShopifyUploadBundleSummary {
+  run_id: number;
+  total_rows: number;
+  safe_count: number;
+  exception_count: number;
+  safe_row_ids: number[];
+  exception_row_ids: number[];
+  blocker_counts: Record<string, number>;
+}
+
+export interface ShopifyUploadBundleResult {
+  safe_upload_path: string;
+  exceptions_path: string;
+  safe_count: number;
+  exception_count: number;
+  blocker_summary: ShopifyUploadBundleSummary;
+}

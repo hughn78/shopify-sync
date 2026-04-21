@@ -155,6 +155,32 @@ class ExportService:
             'exceptions_path': str(exceptions_path),
             'safe_count': len(safe_rows),
             'exception_count': len(exception_rows),
+            'blocker_summary': self.summarize_shopify_upload_bundle(db, run_id),
+        }
+
+    def summarize_shopify_upload_bundle(self, db: Session, run_id: int) -> dict[str, Any]:
+        rows = db.scalars(select(InventoryReconciliationRow).where(InventoryReconciliationRow.run_id == run_id)).all()
+        blocker_counts: dict[str, int] = {}
+        safe_ids: list[int] = []
+        exception_ids: list[int] = []
+
+        for row in rows:
+            blockers = self._safe_upload_blockers(row)
+            if blockers:
+                exception_ids.append(row.id)
+                for blocker in blockers:
+                    blocker_counts[blocker] = blocker_counts.get(blocker, 0) + 1
+            else:
+                safe_ids.append(row.id)
+
+        return {
+            'run_id': run_id,
+            'total_rows': len(rows),
+            'safe_count': len(safe_ids),
+            'exception_count': len(exception_ids),
+            'safe_row_ids': safe_ids,
+            'exception_row_ids': exception_ids,
+            'blocker_counts': blocker_counts,
         }
 
     def export_link_report(self, db: Session, status: str, filename_prefix: str) -> Path:
