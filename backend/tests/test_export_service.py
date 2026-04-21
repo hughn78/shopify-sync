@@ -101,7 +101,25 @@ class TestExportService:
         assert result['exception_count'] == 0
         assert len(safe_df) == 1
         assert exceptions_df.empty
+        assert list(safe_df.columns) == [
+            'Handle',
+            'Title',
+            'SKU',
+            'Location',
+            'On hand (current)',
+            'Available',
+            'Committed',
+            'Unavailable',
+            'Variant ID',
+            'Inventory Item ID',
+            'Location ID',
+            'Barcode',
+            'New Shopify On Hand',
+            'Delta',
+        ]
         assert safe_df.iloc[0]['Inventory Item ID'] == 'gid://shopify/InventoryItem/222'
+        assert safe_df.iloc[0]['Location'] == 'Main Store 310A'
+        assert safe_df.iloc[0]['On hand (current)'] == 4
         assert safe_df.iloc[0]['New Shopify On Hand'] == 7
 
     def test_shopify_upload_bundle_blocks_missing_location_id(self, db, tmp_path, monkeypatch):
