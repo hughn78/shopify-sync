@@ -1,0 +1,48 @@
+{
+  "name": "pharmacy-stock-sync-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Desktop wrapper for Pharmacy Stock Sync",
+  "main": "desktop/main.js",
+  "scripts": {
+    "desktop:install": "cd frontend && npm install",
+    "desktop:build:web": "cd frontend && npm run build",
+    "desktop:sync:web": "echo 'Frontend build already outputs into backend/app/static'",
+    "desktop:prepare": "npm run desktop:build:web",
+    "desktop:start": "electron .",
+    "desktop:dist": "npm run desktop:prepare && electron-builder --mac dmg"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.hughn78.pharmacystocksync",
+    "productName": "Pharmacy Stock Sync",
+    "files": [
+      "desktop/**/*",
+      "backend/**/*",
+      "package.json",
+      "!backend/.venv/**/*",
+      "!backend/.pytest_cache/**/*",
+      "!backend/tests/**/*",
+      "!backend/data/**/*",
+      "!**/__pycache__/**/*"
+    ],
+    "extraFiles": [
+      {
+        "from": "backend/app/static",
+        "to": "backend/app/static"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "target": [
+        "dmg"
+      ]
+    },
+    "dmg": {
+      "title": "Pharmacy Stock Sync"
+    }
+  }
+}
