@@ -9,9 +9,23 @@ let backendProcess;
 const isDev = !app.isPackaged;
 
 function resolveBackendRoot() {
-  return isDev
-    ? path.join(__dirname, '..', 'backend')
-    : path.join(process.resourcesPath, 'backend');
+  if (isDev) {
+    return path.join(__dirname, '..', 'backend');
+  }
+
+  const candidates = [
+    path.join(process.resourcesPath, 'backend'),
+    path.join(process.resourcesPath, '..', 'backend'),
+    path.join(process.resourcesPath, '..', '..', 'backend'),
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return candidates[0];
 }
 
 function resolvePythonCommand(backendRoot) {
