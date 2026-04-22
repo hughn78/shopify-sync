@@ -127,3 +127,10 @@ export interface ShopifyUploadBundleResult {
   exception_count: number;
   blocker_summary: ShopifyUploadBundleSummary;
 }
+
+export interface ShopifyProductsBundleResult {
+  safe_products_path: string;
+  exceptions_path: string;
+  safe_count: number;
+  exception_count: number;
+}

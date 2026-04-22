@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/PageHeader';
 import { api } from '@/lib/api';
-import type { ReconciliationRow, ShopifyUploadBundleResult, ShopifyUploadBundleSummary } from '@/lib/types';
+import type { ReconciliationRow, ShopifyProductsBundleResult, ShopifyUploadBundleResult, ShopifyUploadBundleSummary } from '@/lib/types';
 
 export function InventorySyncPage() {
   const [runId, setRunId] = useState<number | null>(null);
   const [rows, setRows] = useState<ReconciliationRow[]>([]);
   const [exportPath, setExportPath] = useState('');
   const [bundle, setBundle] = useState<ShopifyUploadBundleResult | null>(null);
+  const [productsBundle, setProductsBundle] = useState<ShopifyProductsBundleResult | null>(null);
   const [bundleSummary, setBundleSummary] = useState<ShopifyUploadBundleSummary | null>(null);
   const [running, setRunning] = useState(false);
   const [activeView, setActiveView] = useState<'all' | 'safe' | 'exceptions'>('all');
@@ -34,6 +35,7 @@ export function InventorySyncPage() {
       const summary = await api<ShopifyUploadBundleSummary>(`/exports/shopify-upload/${result.run_id}/summary`);
       setRows(data);
       setBundle(null);
+      setProductsBundle(null);
       setExportPath('');
       setBundleSummary(summary);
       setActiveView('all');
@@ -68,6 +70,16 @@ export function InventorySyncPage() {
     }
   }
 
+  async function exportShopifyProductsBundle() {
+    try {
+      const result = await api<ShopifyProductsBundleResult>('/exports/shopify-products', { method: 'POST' });
+      setProductsBundle(result);
+      toast.success('Shopify products bundle created');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Shopify products export failed');
+    }
+  }
+
   return (
     <div>
       <PageHeader title="Inventory Sync" subtitle="Run reconciliation through canonical products and generate Shopify inventory output." />
@@ -75,6 +87,7 @@ export function InventorySyncPage() {
         <button onClick={run} disabled={running}>{running ? 'Running...' : 'Run reconciliation'}</button>
         <button onClick={exportInventory} disabled={!runId || summary.ready === 0}>Export Shopify inventory CSV</button>
         <button onClick={exportShopifyUploadBundle} disabled={!runId}>Create Shopify upload bundle</button>
+        <button onClick={exportShopifyProductsBundle}>Create Shopify products bundle</button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -90,6 +103,14 @@ export function InventorySyncPage() {
           <div><strong>Safe upload file:</strong> {bundle.safe_upload_path}</div>
           <div><strong>Exceptions file:</strong> {bundle.exceptions_path}</div>
           <div><strong>Safe rows:</strong> {bundle.safe_count} · <strong>Exceptions:</strong> {bundle.exception_count}</div>
+        </div>
+      ) : null}
+
+      {productsBundle ? (
+        <div className="rounded-lg border border-border bg-card p-4 mb-6 text-sm space-y-2">
+          <div><strong>Safe products file:</strong> {productsBundle.safe_products_path}</div>
+          <div><strong>Products exceptions file:</strong> {productsBundle.exceptions_path}</div>
+          <div><strong>Safe products:</strong> {productsBundle.safe_count} · <strong>Exceptions:</strong> {productsBundle.exception_count}</div>
         </div>
       ) : null}
 
