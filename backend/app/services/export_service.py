@@ -107,6 +107,64 @@ class ExportService:
             'Status': self._coalesce_payload_value(payload, 'Status', 'status') or source_product.status,
         }
 
+    def _shopify_product_export_blockers(self, row: dict[str, Any]) -> list[str]:
+        blockers: list[str] = []
+        if not row.get('Handle'):
+            blockers.append('MISSING_HANDLE')
+        if not row.get('Title'):
+            blockers.append('MISSING_TITLE')
+        if not row.get('Variant SKU'):
+            blockers.append('MISSING_VARIANT_SKU')
+        if not row.get('Status'):
+            blockers.append('MISSING_STATUS')
+        return blockers
+
+    def export_shopify_products_bundle(self, db: Session) -> dict[str, Any]:
+        rows = db.scalars(
+            select(SourceProduct).join(SourceProductLink, SourceProductLink.source_product_id == SourceProduct.id).where(SourceProduct.external_variant_id.is_not(None))
+        ).all()
+
+        safe_rows = []
+        exception_rows = []
+
+        for source_product in rows:
+            projected = self.project_shopify_product_row(source_product)
+            blockers = self._shopify_product_export_blockers(projected)
+            if blockers:
+                exception_rows.append({**projected, 'Blockers': ','.join(blockers)})
+            else:
+                safe_rows.append(projected)
+
+        timestamp = _utcnow().strftime('%Y%m%d%H%M%S')
+        safe_path = EXPORT_DIR / f'shopify_products_safe_{timestamp}.csv'
+        exceptions_path = EXPORT_DIR / f'shopify_products_exceptions_{timestamp}.csv'
+
+        pd.DataFrame(safe_rows, columns=self.PRODUCT_EXPORT_COLUMNS).to_csv(safe_path, index=False)
+        pd.DataFrame(exception_rows, columns=[*self.PRODUCT_EXPORT_COLUMNS, 'Blockers']).to_csv(exceptions_path, index=False)
+
+        db.add_all([
+            ExportRun(
+                export_type='SHOPIFY_PRODUCTS_SAFE',
+                file_path=str(safe_path),
+                row_count=len(safe_rows),
+                manifest_json={'kind': 'safe_products'},
+            ),
+            ExportRun(
+                export_type='SHOPIFY_PRODUCTS_EXCEPTIONS',
+                file_path=str(exceptions_path),
+                row_count=len(exception_rows),
+                manifest_json={'kind': 'product_exceptions'},
+            ),
+        ])
+        db.commit()
+
+        return {
+            'safe_products_path': str(safe_path),
+            'exceptions_path': str(exceptions_path),
+            'safe_count': len(safe_rows),
+            'exception_count': len(exception_rows),
+        }
+
     def _row_warnings(self, row: InventoryReconciliationRow) -> list[str]:
         return list((row.warning_flags_json or {}).get('warnings', []))
 

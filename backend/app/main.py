@@ -320,6 +320,11 @@ def shopify_upload_bundle_summary(run_id: int, db: Session = Depends(get_db)):
     return export_service.summarize_shopify_upload_bundle(db, run_id)
 
 
+@app.post('/api/exports/shopify-products')
+def export_shopify_products_bundle(db: Session = Depends(get_db)):
+    return export_service.export_shopify_products_bundle(db)
+
+
 @app.get('/api/audit-summary')
 def audit_summary(db: Session = Depends(get_db)):
     return audit_service.summary(db)

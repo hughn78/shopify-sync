@@ -159,3 +159,79 @@ class TestExportService:
         assert result['safe_count'] == 0
         assert result['exception_count'] == 1
         assert 'SYNC_STATUS_NOT_READY' in exceptions_df.iloc[0]['Blockers']
+
+    def test_shopify_products_bundle_splits_safe_and_exception_rows(self, db, tmp_path, monkeypatch):
+        system = SourceSystem(code='SHOPIFY_PRODUCTS', name='Shopify Products')
+        db.add(system)
+        db.flush()
+
+        canonical = CanonicalProduct(
+            canonical_name='Omura X1 Vaporiser Bundle',
+            normalized_name='omura x1 vaporiser bundle',
+            review_status='NEEDS_REVIEW',
+        )
+        db.add(canonical)
+        db.flush()
+
+        safe_product = SourceProduct(
+            source_system_id=system.id,
+            source_record_key='shopify-product-variant:gid://shopify/ProductVariant/111',
+            title='Omura X1 Vaporiser Bundle',
+            handle='omura-x1-vaporiser-bundle',
+            external_variant_id='gid://shopify/ProductVariant/111',
+            sku='OMURA-X1',
+            barcode='1234567890123',
+            status='archived',
+            raw_payload_json={
+                'Handle': 'omura-x1-vaporiser-bundle',
+                'Title': 'Omura X1 Vaporiser Bundle',
+                'Variant SKU': 'OMURA-X1',
+                'Variant Barcode': '1234567890123',
+                'Status': 'archived',
+            },
+        )
+        exception_product = SourceProduct(
+            source_system_id=system.id,
+            source_record_key='shopify-product-variant:gid://shopify/ProductVariant/222',
+            title='Broken Product',
+            handle='broken-product',
+            external_variant_id='gid://shopify/ProductVariant/222',
+            sku=None,
+            status='draft',
+            raw_payload_json={
+                'Handle': 'broken-product',
+                'Title': 'Broken Product',
+                'Status': 'draft',
+            },
+        )
+        db.add_all([safe_product, exception_product])
+        db.flush()
+
+        db.add_all([
+            SourceProductLink(
+                canonical_product_id=canonical.id,
+                source_product_id=safe_product.id,
+                link_status=LinkStatus.AUTO_ACCEPTED,
+                link_method='EXACT_BARCODE',
+            ),
+            SourceProductLink(
+                canonical_product_id=canonical.id,
+                source_product_id=exception_product.id,
+                link_status=LinkStatus.NEEDS_REVIEW,
+                link_method='FUZZY_PLUS_AI',
+            ),
+        ])
+        db.commit()
+
+        monkeypatch.setattr('app.services.export_service.EXPORT_DIR', tmp_path)
+
+        result = ExportService().export_shopify_products_bundle(db)
+
+        safe_df = pd.read_csv(result['safe_products_path'])
+        exceptions_df = pd.read_csv(result['exceptions_path'])
+
+        assert result['safe_count'] == 1
+        assert result['exception_count'] == 1
+        assert safe_df.iloc[0]['Handle'] == 'omura-x1-vaporiser-bundle'
+        assert safe_df.iloc[0]['Variant SKU'] == 'OMURA-X1'
+        assert 'MISSING_VARIANT_SKU' in exceptions_df.iloc[0]['Blockers']
