@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import EXPORT_DIR
-from app.models import ExportRun, InventoryReconciliationRow, SourceProductLink
+from app.models import ExportRun, InventoryReconciliationRow, SourceProduct, SourceProductLink
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +52,60 @@ class ExportService:
         'Sync Status',
         'Blockers',
     ]
+
+    PRODUCT_EXPORT_COLUMNS = [
+        'Handle',
+        'Title',
+        'Body (HTML)',
+        'Vendor',
+        'Product Category',
+        'Type',
+        'Tags',
+        'Published',
+        'Option1 Name',
+        'Option1 Value',
+        'Option2 Name',
+        'Option2 Value',
+        'Option3 Name',
+        'Option3 Value',
+        'Variant SKU',
+        'Variant Barcode',
+        'Variant Price',
+        'Cost per item',
+        'Image Src',
+        'Status',
+    ]
+
+    def _coalesce_payload_value(self, payload: dict[str, Any], *keys: str) -> Any:
+        for key in keys:
+            if key in payload and payload[key] not in (None, ''):
+                return payload[key]
+        return None
+
+    def project_shopify_product_row(self, source_product: SourceProduct) -> dict[str, Any]:
+        payload = source_product.raw_payload_json or {}
+        return {
+            'Handle': self._coalesce_payload_value(payload, 'Handle', 'handle') or source_product.handle,
+            'Title': self._coalesce_payload_value(payload, 'Title', 'title') or source_product.title,
+            'Body (HTML)': self._coalesce_payload_value(payload, 'Body (HTML)', 'Body HTML', 'body_html'),
+            'Vendor': self._coalesce_payload_value(payload, 'Vendor', 'vendor') or source_product.vendor,
+            'Product Category': self._coalesce_payload_value(payload, 'Product Category', 'Google Shopping / Google Product Category'),
+            'Type': self._coalesce_payload_value(payload, 'Type', 'Product Type', 'product_type') or source_product.product_type,
+            'Tags': self._coalesce_payload_value(payload, 'Tags', 'tags'),
+            'Published': self._coalesce_payload_value(payload, 'Published', 'published'),
+            'Option1 Name': self._coalesce_payload_value(payload, 'Option1 Name') or 'Title',
+            'Option1 Value': self._coalesce_payload_value(payload, 'Option1 Value') or 'Default Title',
+            'Option2 Name': self._coalesce_payload_value(payload, 'Option2 Name'),
+            'Option2 Value': self._coalesce_payload_value(payload, 'Option2 Value'),
+            'Option3 Name': self._coalesce_payload_value(payload, 'Option3 Name'),
+            'Option3 Value': self._coalesce_payload_value(payload, 'Option3 Value'),
+            'Variant SKU': self._coalesce_payload_value(payload, 'Variant SKU', 'SKU') or source_product.sku,
+            'Variant Barcode': self._coalesce_payload_value(payload, 'Variant Barcode', 'Barcode') or source_product.barcode,
+            'Variant Price': self._coalesce_payload_value(payload, 'Variant Price', 'Price'),
+            'Cost per item': self._coalesce_payload_value(payload, 'Cost per item', 'Cost'),
+            'Image Src': self._coalesce_payload_value(payload, 'Image Src', 'Image URL', 'image_src'),
+            'Status': self._coalesce_payload_value(payload, 'Status', 'status') or source_product.status,
+        }
 
     def _row_warnings(self, row: InventoryReconciliationRow) -> list[str]:
         return list((row.warning_flags_json or {}).get('warnings', []))
