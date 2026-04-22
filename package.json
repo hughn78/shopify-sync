@@ -8,7 +8,7 @@
     "desktop:install": "cd frontend && npm install",
     "desktop:build:web": "cd frontend && npm run build",
     "desktop:sync:web": "echo 'Frontend build already outputs into backend/app/static'",
-    "desktop:prepare": "npm run desktop:build:web",
+    "desktop:prepare": "npm run desktop:install && npm run desktop:build:web",
     "desktop:start": "electron .",
     "desktop:dist": "npm run desktop:prepare && electron-builder --mac dmg"
   },

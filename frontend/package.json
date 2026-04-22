@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm exec tsc -- -p tsconfig.json && npm exec vite build",
     "preview": "vite preview"
   },
   "dependencies": {
