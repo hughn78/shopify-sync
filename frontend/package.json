@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm exec tsc -- -p tsconfig.json && npm exec vite build",
+    "build": "node ./scripts/build-isolated.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
