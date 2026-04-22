@@ -104,23 +104,37 @@ class TestExportService:
         assert list(safe_df.columns) == [
             'Handle',
             'Title',
+            'Option1 Name',
+            'Option1 Value',
+            'Option2 Name',
+            'Option2 Value',
+            'Option3 Name',
+            'Option3 Value',
             'SKU',
+            'HS Code',
+            'COO',
             'Location',
+            'Bin name',
+            'Incoming (not editable)',
+            'Unavailable (not editable)',
+            'Committed (not editable)',
+            'Available (not editable)',
             'On hand (current)',
-            'Available',
-            'Committed',
-            'Unavailable',
+            'On hand (new)',
             'Variant ID',
             'Inventory Item ID',
             'Location ID',
             'Barcode',
-            'New Shopify On Hand',
             'Delta',
         ]
+        assert safe_df.iloc[0]['Option1 Name'] == 'Title'
+        assert safe_df.iloc[0]['Option1 Value'] == 'Default Title'
         assert safe_df.iloc[0]['Inventory Item ID'] == 'gid://shopify/InventoryItem/222'
         assert safe_df.iloc[0]['Location'] == 'Main Store 310A'
+        assert safe_df.iloc[0]['Incoming (not editable)'] == 0
+        assert safe_df.iloc[0]['Available (not editable)'] == 4
         assert safe_df.iloc[0]['On hand (current)'] == 4
-        assert safe_df.iloc[0]['New Shopify On Hand'] == 7
+        assert safe_df.iloc[0]['On hand (new)'] == 7
 
     def test_shopify_upload_bundle_blocks_missing_location_id(self, db, tmp_path, monkeypatch):
         run = _build_db_for_export(db, missing_location=True)
