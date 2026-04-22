@@ -160,11 +160,14 @@ class ExportService:
 
         safe_rows = []
         exception_rows = []
+        blocker_counts: dict[str, int] = {}
 
         for source_product in rows:
             projected = self.project_shopify_product_row(source_product)
             blockers = self._shopify_product_export_blockers(projected)
             if blockers:
+                for blocker in blockers:
+                    blocker_counts[blocker] = blocker_counts.get(blocker, 0) + 1
                 exception_rows.append({**projected, 'Blockers': ','.join(blockers)})
             else:
                 safe_rows.append(projected)
@@ -197,6 +200,17 @@ class ExportService:
             'exceptions_path': str(exceptions_path),
             'safe_count': len(safe_rows),
             'exception_count': len(exception_rows),
+            'blocker_counts': blocker_counts,
+            'exception_preview': [
+                {
+                    'Handle': row.get('Handle'),
+                    'Title': row.get('Title'),
+                    'Variant SKU': row.get('Variant SKU'),
+                    'Status': row.get('Status'),
+                    'Blockers': row.get('Blockers', '').split(',') if row.get('Blockers') else [],
+                }
+                for row in exception_rows[:50]
+            ],
         }
 
     def _row_warnings(self, row: InventoryReconciliationRow) -> list[str]:

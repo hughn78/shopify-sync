@@ -133,4 +133,12 @@ export interface ShopifyProductsBundleResult {
   exceptions_path: string;
   safe_count: number;
   exception_count: number;
+  blocker_counts: Record<string, number>;
+  exception_preview: Array<{
+    Handle?: string;
+    Title?: string;
+    'Variant SKU'?: string;
+    Status?: string;
+    Blockers: string[];
+  }>;
 }

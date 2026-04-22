@@ -107,10 +107,48 @@ export function InventorySyncPage() {
       ) : null}
 
       {productsBundle ? (
-        <div className="rounded-lg border border-border bg-card p-4 mb-6 text-sm space-y-2">
-          <div><strong>Safe products file:</strong> {productsBundle.safe_products_path}</div>
-          <div><strong>Products exceptions file:</strong> {productsBundle.exceptions_path}</div>
-          <div><strong>Safe products:</strong> {productsBundle.safe_count} · <strong>Exceptions:</strong> {productsBundle.exception_count}</div>
+        <div className="rounded-lg border border-border bg-card p-4 mb-6 text-sm space-y-4">
+          <div className="space-y-2">
+            <div><strong>Safe products file:</strong> {productsBundle.safe_products_path}</div>
+            <div><strong>Products exceptions file:</strong> {productsBundle.exceptions_path}</div>
+            <div><strong>Safe products:</strong> {productsBundle.safe_count} · <strong>Exceptions:</strong> {productsBundle.exception_count}</div>
+          </div>
+
+          {Object.keys(productsBundle.blocker_counts).length ? (
+            <div>
+              <div className="text-xs uppercase text-muted-foreground mb-2">Product blocker summary</div>
+              <div className="flex gap-2 flex-wrap">
+                {Object.entries(productsBundle.blocker_counts)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([blocker, count]) => (
+                    <span key={blocker} className="rounded border px-2 py-1 text-xs bg-amber-50 border-amber-200 text-amber-900">
+                      {blocker} ({count})
+                    </span>
+                  ))}
+              </div>
+            </div>
+          ) : null}
+
+          {productsBundle.exception_preview.length ? (
+            <div className="space-y-3">
+              <div className="text-xs uppercase text-muted-foreground">Product exception preview</div>
+              {productsBundle.exception_preview.map((item, index) => (
+                <div key={`${item.Handle || item.Title || 'exception'}-${index}`} className="rounded border border-amber-200 bg-amber-50/60 p-3 space-y-1">
+                  <div className="font-medium text-sm">{item.Title || 'Untitled product'}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Handle: {item.Handle || 'n/a'} · SKU: {item['Variant SKU'] || 'n/a'} · Status: {item.Status || 'n/a'}
+                  </div>
+                  <div className="flex gap-2 flex-wrap pt-1">
+                    {item.Blockers.map((blocker) => (
+                      <span key={blocker} className="rounded border px-2 py-1 text-xs bg-white border-amber-300 text-amber-900">
+                        {blocker}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
