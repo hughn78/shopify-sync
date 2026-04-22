@@ -185,8 +185,11 @@ class TestExportService:
             raw_payload_json={
                 'Handle': 'omura-x1-vaporiser-bundle',
                 'Title': 'Omura X1 Vaporiser Bundle',
+                'Body (HTML)': '<p>Bundle description</p>',
+                'Vendor': 'Blackshaws Road Pharmacy',
                 'Variant SKU': 'OMURA-X1',
                 'Variant Barcode': '1234567890123',
+                'Variant Price': '309.95',
                 'Status': 'archived',
             },
         )
@@ -201,6 +204,7 @@ class TestExportService:
             raw_payload_json={
                 'Handle': 'broken-product',
                 'Title': 'Broken Product',
+                'Vendor': 'Blackshaws Road Pharmacy',
                 'Status': 'draft',
             },
         )
@@ -235,3 +239,5 @@ class TestExportService:
         assert safe_df.iloc[0]['Handle'] == 'omura-x1-vaporiser-bundle'
         assert safe_df.iloc[0]['Variant SKU'] == 'OMURA-X1'
         assert 'MISSING_VARIANT_SKU' in exceptions_df.iloc[0]['Blockers']
+        assert 'MISSING_PRICE' in exceptions_df.iloc[0]['Blockers']
+        assert 'MISSING_BODY_HTML' in exceptions_df.iloc[0]['Blockers']

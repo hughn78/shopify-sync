@@ -69,9 +69,23 @@ class ExportService:
         'Option3 Name',
         'Option3 Value',
         'Variant SKU',
+        'Variant Grams',
+        'Variant Inventory Policy',
+        'Variant Fulfillment Service',
         'Variant Barcode',
         'Variant Price',
+        'Variant Requires Shipping',
+        'Variant Taxable',
+        'Image Position',
+        'SEO Title',
+        'SEO Description',
+        'Google Shopping / Google Product Category',
+        'Variant Weight Unit',
         'Cost per item',
+        'Included / Australia',
+        'Price / Australia',
+        'Included / International',
+        'Price / International',
         'Image Src',
         'Status',
     ]
@@ -100,9 +114,23 @@ class ExportService:
             'Option3 Name': self._coalesce_payload_value(payload, 'Option3 Name'),
             'Option3 Value': self._coalesce_payload_value(payload, 'Option3 Value'),
             'Variant SKU': self._coalesce_payload_value(payload, 'Variant SKU', 'SKU') or source_product.sku,
+            'Variant Grams': self._coalesce_payload_value(payload, 'Variant Grams'),
+            'Variant Inventory Policy': self._coalesce_payload_value(payload, 'Variant Inventory Policy') or 'deny',
+            'Variant Fulfillment Service': self._coalesce_payload_value(payload, 'Variant Fulfillment Service') or 'manual',
             'Variant Barcode': self._coalesce_payload_value(payload, 'Variant Barcode', 'Barcode') or source_product.barcode,
             'Variant Price': self._coalesce_payload_value(payload, 'Variant Price', 'Price'),
+            'Variant Requires Shipping': self._coalesce_payload_value(payload, 'Variant Requires Shipping'),
+            'Variant Taxable': self._coalesce_payload_value(payload, 'Variant Taxable'),
+            'Image Position': self._coalesce_payload_value(payload, 'Image Position'),
+            'SEO Title': self._coalesce_payload_value(payload, 'SEO Title'),
+            'SEO Description': self._coalesce_payload_value(payload, 'SEO Description'),
+            'Google Shopping / Google Product Category': self._coalesce_payload_value(payload, 'Google Shopping / Google Product Category', 'Product Category'),
+            'Variant Weight Unit': self._coalesce_payload_value(payload, 'Variant Weight Unit') or 'kg',
             'Cost per item': self._coalesce_payload_value(payload, 'Cost per item', 'Cost'),
+            'Included / Australia': self._coalesce_payload_value(payload, 'Included / Australia'),
+            'Price / Australia': self._coalesce_payload_value(payload, 'Price / Australia', 'Variant Price', 'Price'),
+            'Included / International': self._coalesce_payload_value(payload, 'Included / International'),
+            'Price / International': self._coalesce_payload_value(payload, 'Price / International'),
             'Image Src': self._coalesce_payload_value(payload, 'Image Src', 'Image URL', 'image_src'),
             'Status': self._coalesce_payload_value(payload, 'Status', 'status') or source_product.status,
         }
@@ -117,6 +145,12 @@ class ExportService:
             blockers.append('MISSING_VARIANT_SKU')
         if not row.get('Status'):
             blockers.append('MISSING_STATUS')
+        if row.get('Variant Price') in (None, '') and row.get('Price / Australia') in (None, ''):
+            blockers.append('MISSING_PRICE')
+        if row.get('Vendor') in (None, ''):
+            blockers.append('MISSING_VENDOR')
+        if row.get('Body (HTML)') in (None, ''):
+            blockers.append('MISSING_BODY_HTML')
         return blockers
 
     def export_shopify_products_bundle(self, db: Session) -> dict[str, Any]:

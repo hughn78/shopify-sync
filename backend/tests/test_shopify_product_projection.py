@@ -59,9 +59,23 @@ def test_project_shopify_product_row_prefers_raw_payload_fields(db):
         'Option3 Name': None,
         'Option3 Value': None,
         'Variant SKU': 'OMURA-X1',
+        'Variant Grams': None,
+        'Variant Inventory Policy': 'deny',
+        'Variant Fulfillment Service': 'manual',
         'Variant Barcode': '1234567890123',
         'Variant Price': '309.95',
+        'Variant Requires Shipping': None,
+        'Variant Taxable': None,
+        'Image Position': None,
+        'SEO Title': None,
+        'SEO Description': None,
+        'Google Shopping / Google Product Category': 'Home & Garden > Smoking Accessories',
+        'Variant Weight Unit': 'kg',
         'Cost per item': '289.99',
+        'Included / Australia': None,
+        'Price / Australia': '309.95',
+        'Included / International': None,
+        'Price / International': None,
         'Image Src': 'https://cdn.example.com/omura.webp',
         'Status': 'archived',
     }
@@ -95,6 +109,9 @@ def test_project_shopify_product_row_falls_back_to_structured_source_fields(db):
     assert row['Type'] == 'General Health'
     assert row['Variant SKU'] == 'BTPROD30'
     assert row['Variant Barcode'] == '7350012554033'
+    assert row['Variant Inventory Policy'] == 'deny'
+    assert row['Variant Fulfillment Service'] == 'manual'
+    assert row['Variant Weight Unit'] == 'kg'
     assert row['Status'] == 'draft'
     assert row['Option1 Name'] == 'Title'
     assert row['Option1 Value'] == 'Default Title'
